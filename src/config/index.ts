@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import type { StringValue } from "ms";
 import path from "path";
 import { env } from "process";
 

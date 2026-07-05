@@ -6,7 +6,7 @@ export type TRouteConfig = {
   method: THttpMethod;
   path: string;
   handler: TRequestHandler;
-  middlewares?: TRequestHandler;
+  middlewares?: TRequestHandler[];
 };
 
 export type TRouteModule = {

@@ -1,6 +1,5 @@
 import app from "./app";
 import config from "./config";
-
 import { prisma } from "./lib/prisma";
 
 async function main() {

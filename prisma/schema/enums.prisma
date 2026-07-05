@@ -1,0 +1,10 @@
+enum TRole {
+    CUSTOMER
+    TECHNICIAN
+    ADMIN
+}
+
+enum TUserStatus {
+    ACTIVE
+    BANNED
+}
