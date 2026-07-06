@@ -6,24 +6,15 @@ import type {
   TUpdateTechnicianProfilePayload,
 } from "./technicianProfile.validation";
 import type { TechnicianProfile } from "../../../../generated/prisma/client";
+import { findTechnicianProfileIdByUser } from "./technicianProfile.utils";
+import { ensureNotEmptyObject } from "../../../utils/utils";
 
 export class TechnicianProfileService {
-  //Returns technician profile by user id
-  private async getProfile(userId: string) {
-    return prisma.technicianProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-  }
   //--------------Create / Onboard Profile-------------
   async createProfile(
     userId: string,
     payload: TCreateTechnicianProfilePayload,
   ): Promise<TechnicianProfile> {
-    const existingTechnician = await this.getProfile(userId);
-    if (existingTechnician) {
-      throw new AppError("Profile already exists.", httpStatus.CONFLICT);
-    }
     const { basicInfo, pricing, location } = payload;
     const profile = await prisma.technicianProfile.create({
       data: {
@@ -48,8 +39,8 @@ export class TechnicianProfileService {
     userId: string,
     payload: TUpdateTechnicianProfilePayload,
   ): Promise<TechnicianProfile> {
-    const existingTechnician = await this.getProfile(userId);
-    if (!existingTechnician) {
+    const existingProfile = await findTechnicianProfileIdByUser(userId);
+    if (!existingProfile) {
       throw new AppError(
         "Profile not found. Please complete your onboarding first.",
         httpStatus.NOT_FOUND,
@@ -63,12 +54,7 @@ export class TechnicianProfileService {
       ...(pricing ?? {}),
       ...(location ?? {}),
     };
-    if (Object.keys(data).length === 0) {
-      throw new AppError(
-        "No fields provided to update.",
-        httpStatus.BAD_REQUEST,
-      );
-    }
+    ensureNotEmptyObject(data);
 
     //update profile
     const profile = await prisma.technicianProfile.update({

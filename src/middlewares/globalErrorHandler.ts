@@ -7,6 +7,7 @@ import type {
   TNextFunction,
 } from "../types/express.types";
 import { AppError } from "../utils/appError";
+import { handlePrismaError } from "./prismaErrorHandler";
 
 export const globalErrorHandler = (
   err: unknown,
@@ -17,6 +18,7 @@ export const globalErrorHandler = (
   let statusCode: number = 500;
   let message: string = "Something went wrong";
   let errorDetails: unknown = null;
+  const prismaError = handlePrismaError(err);
 
   // ===============================
   // Zod Validation Error
@@ -30,94 +32,12 @@ export const globalErrorHandler = (
     }));
   }
   // ===============================
-  // Prisma Known Error
+  // Prisma Error
   // ===============================
-  else if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (err.code) {
-      case "P2000":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = `Value too long for column: ${
-          (err.meta?.column_name as string) ?? "unknown"
-        }`;
-        break;
-
-      case "P2001":
-      case "P2015":
-      case "P2025":
-        statusCode = httpStatus.NOT_FOUND;
-        message = (err.meta?.cause as string) ?? "Record not found";
-        break;
-
-      case "P2002":
-        statusCode = httpStatus.CONFLICT;
-        message = `${(err.meta?.target as string[])?.join(
-          ", ",
-        )} already exists`;
-        break;
-
-      case "P2003":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = `Invalid reference: ${
-          (err.meta?.field_name as string) ?? "related record does not exist"
-        }`;
-        break;
-
-      case "P2004":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = `Database constraint failed: ${
-          (err.meta?.database_error as string) ?? err.message
-        }`;
-        break;
-
-      case "P2011":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = `Required field missing: ${
-          (err.meta?.constraint as string) ?? "unknown"
-        }`;
-        break;
-
-      case "P2014":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = `Relation violation: ${
-          (err.meta?.relation_name as string) ?? "required relation missing"
-        }`;
-        break;
-
-      case "P2034":
-        statusCode = httpStatus.CONFLICT;
-        message = "Transaction conflict or deadlock. Please retry.";
-        break;
-
-      default:
-        statusCode = httpStatus.INTERNAL_SERVER_ERROR;
-        message = `Database error (${err.code})`;
-    }
-
-    errorDetails = err.meta ?? null;
-  }
-
-  // ===============================
-  // Prisma Validation Error
-  // ===============================
-  else if (err instanceof Prisma.PrismaClientValidationError) {
-    statusCode = httpStatus.BAD_REQUEST;
-    message = "Invalid query structure. Check field names and types.";
-  }
-
-  // ===============================
-  // Prisma Initialization Error
-  // ===============================
-  else if (err instanceof Prisma.PrismaClientInitializationError) {
-    statusCode = httpStatus.SERVICE_UNAVAILABLE;
-    message = "Database connection failed. Please try again later.";
-  }
-
-  // ===============================
-  // Prisma Unknown Error
-  // ===============================
-  else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
-    statusCode = httpStatus.INTERNAL_SERVER_ERROR;
-    message = "An unknown database error occurred.";
+  else if (prismaError.isPrismaError) {
+    statusCode = prismaError.statusCode;
+    message = prismaError.message;
+    errorDetails = prismaError.errorDetails;
   }
 
   // ===============================
