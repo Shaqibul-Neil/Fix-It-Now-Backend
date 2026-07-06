@@ -1,6 +1,6 @@
 import type { TRole, TUserStatus } from "../../../../generated/prisma/enums";
 
-export interface ISafeUser {
+export interface IAuthUser {
   id: string;
   firstName: string;
   lastName: string;
@@ -9,7 +9,7 @@ export interface ISafeUser {
   status: TUserStatus;
 }
 
-export interface IAuthUser extends ISafeUser {
+export interface ISafeUser extends IAuthUser {
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -21,6 +21,6 @@ export interface ITokens {
 }
 
 export interface IJwtPayload extends Omit<
-  ISafeUser,
+  IAuthUser,
   "firstName" | "lastName" | "status"
 > {}

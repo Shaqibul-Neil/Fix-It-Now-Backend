@@ -15,10 +15,7 @@ export const registerValidationSchema = z.object({
       .min(1, "Last Name cannot be empty")
       .max(50, "Last Name cannot exceed 50 characters"),
 
-    role: z
-      .enum([TRole.CUSTOMER, TRole.TECHNICIAN])
-      .default(TRole.CUSTOMER)
-      .optional(),
+    role: z.enum([TRole.CUSTOMER, TRole.TECHNICIAN]).default(TRole.CUSTOMER),
 
     email: z.email("Invalid email address").trim().toLowerCase(),
 

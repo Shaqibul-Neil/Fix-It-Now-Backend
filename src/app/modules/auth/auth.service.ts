@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
-import type { ISafeUser, ITokens } from "./auth.interface";
+import type { IAuthUser, ISafeUser, ITokens } from "./auth.interface";
 import type {
   TLoginUserPayload,
   TRegisterUserPayload,
@@ -13,7 +13,7 @@ import { jwtToken } from "../../../utils/jwt";
 
 export class AuthService {
   //--------------Register-------------
-  async registerUser(payload: TRegisterUserPayload): Promise<ISafeUser> {
+  async registerUser(payload: TRegisterUserPayload): Promise<IAuthUser> {
     const { firstName, lastName, email, password, role } = payload;
 
     const isUserExist = await prisma.user.findUnique({
@@ -22,10 +22,12 @@ export class AuthService {
     if (isUserExist) {
       throw new AppError("Email already registered", httpStatus.CONFLICT);
     }
+
     const hashedPassword = await bcrypt.hash(
       password,
       config.bcrypt_salt_rounds,
     );
+
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
@@ -56,7 +58,7 @@ export class AuthService {
   //--------------Login-------------
   async loginUser(
     payload: TLoginUserPayload,
-  ): Promise<{ safeUser: ISafeUser; tokens: ITokens }> {
+  ): Promise<{ safeUser: IAuthUser; tokens: ITokens }> {
     const { email, password } = payload;
 
     const user = await prisma.user.findFirst({
@@ -129,6 +131,22 @@ export class AuthService {
     const jwtPayload = jwtToken.createJwtPayload(user);
     const newTokens = jwtToken.signToken(jwtPayload);
     return newTokens;
+  }
+
+  //----------Current User--------
+  async currentUser(userId: string): Promise<IAuthUser> {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+      },
+    });
+    return user;
   }
 }
 
