@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
-import type { IAuthUser, ISafeUser, ITokens } from "./auth.interface";
 import type {
   TLoginUserPayload,
   TRegisterUserPayload,
@@ -13,7 +12,7 @@ import { jwtToken } from "../../../utils/jwt";
 
 export class AuthService {
   //--------------Register-------------
-  async registerUser(payload: TRegisterUserPayload): Promise<IAuthUser> {
+  async registerUser(payload: TRegisterUserPayload) {
     const { firstName, lastName, email, password, role } = payload;
 
     const isUserExist = await prisma.user.findUnique({
@@ -56,9 +55,7 @@ export class AuthService {
   }
 
   //--------------Login-------------
-  async loginUser(
-    payload: TLoginUserPayload,
-  ): Promise<{ safeUser: IAuthUser; tokens: ITokens }> {
+  async loginUser(payload: TLoginUserPayload) {
     const { email, password } = payload;
 
     const user = await prisma.user.findFirst({
@@ -108,7 +105,7 @@ export class AuthService {
   }
 
   //------------Refresh Token-------------
-  async refreshToken(refreshToken: string): Promise<ITokens> {
+  async refreshToken(refreshToken: string) {
     const payload = jwtToken.verifyToken(refreshToken, "refresh");
     const user = await prisma.user.findFirstOrThrow({
       where: { id: payload.id },
@@ -134,7 +131,7 @@ export class AuthService {
   }
 
   //----------Current User--------
-  async currentUser(userId: string): Promise<IAuthUser> {
+  async currentUser(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {

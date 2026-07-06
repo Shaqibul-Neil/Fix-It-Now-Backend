@@ -1,5 +1,4 @@
 import httpStatus from "http-status";
-import type { Category } from "../../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { ensureNotEmptyObject, generateSlug } from "../../../utils/utils";
@@ -11,7 +10,7 @@ import type {
 export class CategoryService {
   //------------------ADMIN ACTIONS----------
   //--------------Create Category-------------
-  async createCategory(payload: TCreateCategoryPayload): Promise<Category> {
+  async createCategory(payload: TCreateCategoryPayload) {
     const slug = generateSlug(payload.slug ?? payload.name);
 
     //name + slug are unique so prisma throws error
@@ -28,10 +27,7 @@ export class CategoryService {
   }
 
   //--------------Update Category-------------
-  async updateCategory(
-    categoryId: string,
-    payload: TUpdateCategoryPayload,
-  ): Promise<Category> {
+  async updateCategory(categoryId: string, payload: TUpdateCategoryPayload) {
     const existingCategory = await prisma.category.findUnique({
       where: { id: categoryId },
       select: { id: true },
@@ -58,7 +54,7 @@ export class CategoryService {
   }
 
   //--------------Delete Category-------------
-  async deleteCategory(categoryId: string): Promise<Category> {
+  async deleteCategory(categoryId: string) {
     return prisma.category.delete({
       where: { id: categoryId },
     });

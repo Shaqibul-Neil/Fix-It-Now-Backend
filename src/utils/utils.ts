@@ -20,3 +20,5 @@ export const ensureNotEmptyObject = (
     throw new AppError(message, httpStatus.BAD_REQUEST);
   }
 };
+
+//Global Record exists checking

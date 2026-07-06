@@ -5,8 +5,7 @@ import type {
   TCreateTechnicianProfilePayload,
   TUpdateTechnicianProfilePayload,
 } from "./technicianProfile.validation";
-import type { TechnicianProfile } from "../../../../generated/prisma/client";
-import { findTechnicianProfileIdByUser } from "./technicianProfile.utils";
+import { findTechnicianProfileByUserId } from "./technicianProfile.utils";
 import { ensureNotEmptyObject } from "../../../utils/utils";
 
 export class TechnicianProfileService {
@@ -14,7 +13,7 @@ export class TechnicianProfileService {
   async createProfile(
     userId: string,
     payload: TCreateTechnicianProfilePayload,
-  ): Promise<TechnicianProfile> {
+  ) {
     const { basicInfo, pricing, location } = payload;
     const profile = await prisma.technicianProfile.create({
       data: {
@@ -38,8 +37,8 @@ export class TechnicianProfileService {
   async updateProfile(
     userId: string,
     payload: TUpdateTechnicianProfilePayload,
-  ): Promise<TechnicianProfile> {
-    const existingProfile = await findTechnicianProfileIdByUser(userId);
+  ) {
+    const existingProfile = await findTechnicianProfileByUserId(userId);
     if (!existingProfile) {
       throw new AppError(
         "Profile not found. Please complete your onboarding first.",

@@ -50,7 +50,7 @@ export const serviceIdParamSchema = z.object({
 
 export const listServicesSchema = z.object({
   query: z.object({
-    categoryId: z.uuid("Invalid category id").optional(),
+    category: z.string().trim().min(1).max(120).optional(),
     city: z.string().trim().min(1).max(100).optional(),
     area: z.string().trim().min(1).max(100).optional(),
     minRating: z.coerce.number().min(0).max(5).optional(),

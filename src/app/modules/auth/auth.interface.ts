@@ -15,11 +15,6 @@ export interface ISafeUser extends IAuthUser {
   updatedAt: Date;
 }
 
-export interface ITokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface IJwtPayload extends Omit<
   IAuthUser,
   "firstName" | "lastName" | "status"
