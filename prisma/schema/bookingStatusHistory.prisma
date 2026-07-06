@@ -1,0 +1,16 @@
+model BookingStatusHistory {
+  id        String @id @default(uuid()) @db.Uuid
+  bookingId String @map("booking_id") @db.Uuid
+
+  status      TBookingStatus
+  note        String?        @db.Text // e.g. decline reason
+  changedById String?        @map("changed_by_id") @db.Uuid // User who triggered
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_status_history")
+}

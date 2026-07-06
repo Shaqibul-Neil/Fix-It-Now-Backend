@@ -1,10 +1,42 @@
 enum TRole {
-    CUSTOMER
-    TECHNICIAN
-    ADMIN
+  CUSTOMER
+  TECHNICIAN
+  ADMIN
 }
 
 enum TUserStatus {
-    ACTIVE
-    BANNED
+  ACTIVE
+  BANNED
+}
+
+enum TBookingStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  PAID
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TPaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum TPaymentProvider {
+  SSLCOMMERZ
+  STRIPE
+}
+
+enum TDayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
 }
