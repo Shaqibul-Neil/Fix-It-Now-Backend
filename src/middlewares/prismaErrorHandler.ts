@@ -49,11 +49,12 @@ export const handlePrismaError = (err: unknown) => {
       }
 
       case "P2003":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = "Invalid reference.";
+        statusCode = httpStatus.CONFLICT;
+        message =
+          "This cannot be deleted because it is referenced by existing records.";
+
         errorDetails = {
           code: err.code,
-          field: err.meta?.field_name ?? null,
         };
         break;
 

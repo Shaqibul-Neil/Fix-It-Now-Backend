@@ -36,9 +36,10 @@ export class CategoryService {
       where: { id: categoryId },
       select: { id: true },
     });
-    if (!existingCategory)
-      throw new AppError("Category not found.", httpStatus.NOT_FOUND);
 
+    if (!existingCategory) {
+      throw new AppError("Category not found.", httpStatus.NOT_FOUND);
+    }
     //If no data is given
     ensureNotEmptyObject(payload);
 
@@ -54,6 +55,13 @@ export class CategoryService {
     });
 
     return category;
+  }
+
+  //--------------Delete Category-------------
+  async deleteCategory(categoryId: string): Promise<Category> {
+    return prisma.category.delete({
+      where: { id: categoryId },
+    });
   }
 
   //------------------PUBLIC---------------

@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-//Service Creation Validation
 export const createServiceSchema = z.object({
   body: z.object({
     categoryId: z.uuid("Invalid category id"),
@@ -24,7 +23,6 @@ export const createServiceSchema = z.object({
   }),
 });
 
-//Service Update Validation
 export const updateServiceSchema = z.object({
   params: z.object({
     id: z.uuid("Invalid service id"),
@@ -32,15 +30,8 @@ export const updateServiceSchema = z.object({
   body: z
     .object({
       categoryId: z.uuid("Invalid category id"),
-      title: z
-        .string()
-        .trim()
-        .min(3, "Title must be at least 3 characters")
-        .max(150, "Title cannot exceed 150 characters"),
-      description: z
-        .string()
-        .trim()
-        .max(2000, "Description cannot exceed 2000 characters"),
+      title: z.string().trim().min(3).max(150),
+      description: z.string().trim().max(2000),
       price: z.number().positive("Price must be greater than 0"),
       estimatedDuration: z
         .number()
@@ -51,19 +42,18 @@ export const updateServiceSchema = z.object({
     .partial(),
 });
 
-// Admin moderation — can only flip visibility
-export const moderateServiceSchema = z.object({
+export const serviceIdParamSchema = z.object({
   params: z.object({
     id: z.uuid("Invalid service id"),
-  }),
-  body: z.object({
-    isActive: z.boolean(),
   }),
 });
 
 export const listServicesSchema = z.object({
   query: z.object({
     categoryId: z.uuid("Invalid category id").optional(),
+    city: z.string().trim().min(1).max(100).optional(),
+    area: z.string().trim().min(1).max(100).optional(),
+    minRating: z.coerce.number().min(0).max(5).optional(),
     search: z.string().trim().min(1).max(150).optional(),
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),

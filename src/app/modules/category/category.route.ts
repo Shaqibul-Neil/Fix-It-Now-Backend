@@ -36,5 +36,11 @@ export const categoryRoute: TRouteModule = {
       ),
       handler: categoryController.updateCategory,
     },
+    {
+      method: "delete",
+      path: "/admin/categories/:id",
+      middlewares: roleRoute([TRole.ADMIN]),
+      handler: categoryController.deleteCategory,
+    },
   ],
 };

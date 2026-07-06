@@ -44,6 +44,20 @@ class CategoryController {
     });
   });
 
+  //--------------Delete Category-------------
+  deleteCategory = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const categoryId = req.params.id as string;
+
+    await this.categoryService.deleteCategory(categoryId);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Category deleted successfully",
+    });
+  });
+
   //------------------PUBLIC---------------
   //---------------All Category--------------
   getCategories = asyncHandler(async (req: TRequest, res: TResponse) => {
