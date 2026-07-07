@@ -7,6 +7,7 @@ import {
 import type {
   TCreateBookingPayload,
   TListBookingsQuery,
+  TUpdateBookingStatusPayload,
 } from "./booking.validation";
 import { findCustomerProfileByUserId } from "../customer/customer.utils";
 import { prisma } from "../../../lib/prisma";
@@ -14,13 +15,8 @@ import { AppError } from "../../../utils/appError";
 import { getDayOfWeek, getTimeString } from "../../../utils/date";
 import { CUSTOMER_CANCELABLE } from "./booking.constants";
 import { getPagination } from "../../../utils/utils";
-import { buildBookingFilter } from "./booking.utils";
-import {
-  ADMIN_BOOKING_INCLUDE,
-  BOOKING_LIST_INCLUDE,
-  CUSTOMER_BOOKING_INCLUDE,
-  TECHNICIAN_BOOKING_INCLUDE,
-} from "./booking.include";
+import { buildBookingFilter, getBookingInclude } from "./booking.utils";
+import { BOOKING_LIST_INCLUDE } from "./booking.include";
 import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
 import { bookingListMapper } from "./booking.mapper";
 
@@ -88,23 +84,6 @@ export class BookingService {
         total,
       },
     };
-  }
-
-  //Booking Details
-  private async bookingDetails(
-    where: Prisma.BookingWhereInput,
-    include: Prisma.BookingInclude,
-  ) {
-    const booking = await prisma.booking.findFirst({
-      where,
-      include,
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
-    }
-
-    return booking;
   }
 
   //-------------CUSTOMER ACTIONS----------
@@ -213,46 +192,36 @@ export class BookingService {
 
   //-----------Booking Details-----------
   async getBookingDetails(userId: string, role: TRole, bookingId: string) {
-    let where: Prisma.BookingWhereInput = {
-      id: bookingId,
-    };
+    const include: Prisma.BookingInclude = getBookingInclude(role);
 
-    let include: Prisma.BookingInclude = ADMIN_BOOKING_INCLUDE;
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include,
+    });
 
-    switch (role) {
-      case TRole.CUSTOMER: {
-        const customer = await findCustomerProfileByUserId(userId);
-        where = {
-          id: bookingId,
-          customerId: customer.id,
-        };
-        include = CUSTOMER_BOOKING_INCLUDE;
-        break;
-      }
-
-      case TRole.TECHNICIAN: {
-        const technician = await findTechnicianProfileByUserId(userId);
-        where = {
-          id: bookingId,
-          technicianId: technician.id,
-        };
-        include = TECHNICIAN_BOOKING_INCLUDE;
-        break;
-      }
-
-      case TRole.ADMIN: {
-        where = {
-          id: bookingId,
-        };
-        include = ADMIN_BOOKING_INCLUDE;
-        break;
-      }
-
-      default:
-        throw new AppError("Unauthorized", httpStatus.UNAUTHORIZED);
+    if (!booking) {
+      throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
     }
 
-    return this.bookingDetails(where, include);
+    if (role === TRole.CUSTOMER) {
+      const customer = await findCustomerProfileByUserId(userId);
+      if (booking.customerId !== customer.id) {
+        throw new AppError(
+          "You don't have permission to view this booking.",
+          httpStatus.FORBIDDEN,
+        );
+      }
+    } else if (role === TRole.TECHNICIAN) {
+      const technician = await findTechnicianProfileByUserId(userId);
+      if (booking.technicianId !== technician.id) {
+        throw new AppError(
+          "You don't have permission to view this booking.",
+          httpStatus.FORBIDDEN,
+        );
+      }
+    }
+
+    return booking;
   }
 
   //-------------TECHNICIAN ACTIONS----------
@@ -266,6 +235,91 @@ export class BookingService {
       },
       query,
     );
+  }
+
+  //--------------Update Booking Status-------------
+  async updateStatusByTechnician(
+    userId: string,
+    bookingId: string,
+    payload: TUpdateBookingStatusPayload,
+  ) {
+    //get technician profile
+    const technician = await findTechnicianProfileByUserId(userId);
+
+    //get the booking and check conditions
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, technicianId: true, status: true },
+    });
+    if (!booking) {
+      throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
+    }
+    if (booking.technicianId !== technician.id) {
+      throw new AppError(
+        "You can only manage your own bookings.",
+        httpStatus.FORBIDDEN,
+      );
+    }
+
+    // Status transition validation
+    const throwInvalidTransitionError = () => {
+      throw new AppError(
+        `Cannot change booking from ${booking.status} to ${payload.status}.`,
+        httpStatus.BAD_REQUEST,
+      );
+    };
+    // REQUESTED -> ACCEPTED | DECLINED
+    if (booking.status === TBookingStatus.REQUESTED) {
+      if (
+        payload.status !== TBookingStatus.ACCEPTED &&
+        payload.status !== TBookingStatus.DECLINED
+      ) {
+        throwInvalidTransitionError();
+      }
+    }
+    // PAID -> IN_PROGRESS
+    else if (booking.status === TBookingStatus.PAID) {
+      if (payload.status !== TBookingStatus.IN_PROGRESS) {
+        throwInvalidTransitionError();
+      }
+    }
+    // IN_PROGRESS -> COMPLETED
+    else if (booking.status === TBookingStatus.IN_PROGRESS) {
+      if (payload.status !== TBookingStatus.COMPLETED) {
+        throwInvalidTransitionError();
+      }
+    } else {
+      throwInvalidTransitionError();
+    }
+
+    // Timestamp handling
+    const timestamps: Prisma.BookingUpdateInput = {};
+    if (payload.status === TBookingStatus.ACCEPTED) {
+      timestamps.acceptedAt = new Date();
+    }
+    if (payload.status === TBookingStatus.COMPLETED) {
+      timestamps.completedAt = new Date();
+    }
+    return prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: payload.status,
+        ...timestamps,
+        statusHistory: {
+          create: {
+            status: payload.status,
+            note: payload.note,
+            changedById: userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        acceptedAt: true,
+        completedAt: true,
+      },
+    });
   }
 
   //-------------ADMIN ACTIONS----------

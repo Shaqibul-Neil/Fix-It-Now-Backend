@@ -6,6 +6,7 @@ import { bookingService, type BookingService } from "./booking.service";
 import type {
   TCreateBookingPayload,
   TListBookingsQuery,
+  TUpdateBookingStatusPayload,
 } from "./booking.validation";
 import type { TRole } from "../../../../generated/prisma/enums";
 
@@ -109,6 +110,26 @@ class BookingController {
       });
     },
   );
+
+  //--------------Update Booking Status-------------
+  updateBookingStatus = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id as string;
+    const bookingId = req.params.id as string;
+    const payload = req.body as TUpdateBookingStatusPayload;
+    const booking = await this.bookingService.updateStatusByTechnician(
+      userId,
+      bookingId,
+      payload,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Booking status updated successfully",
+      data: booking,
+    });
+  });
 
   //-------------ADMIN ACTIONS----------
   //----------Get All Bookings List---------

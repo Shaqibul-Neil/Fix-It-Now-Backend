@@ -7,6 +7,7 @@ import {
   bookingIdParamSchema,
   createBookingSchema,
   listBookingsSchema,
+  updateBookingStatusSchema,
 } from "./booking.validation";
 
 export const bookingRoute: TRouteModule = {
@@ -56,6 +57,15 @@ export const bookingRoute: TRouteModule = {
         validateRequest(listBookingsSchema),
       ),
       handler: bookingController.getTechnicianBookingsList,
+    },
+    {
+      method: "patch",
+      path: "/technician/bookings/:id",
+      middlewares: roleRoute(
+        [TRole.TECHNICIAN],
+        validateRequest(updateBookingStatusSchema),
+      ),
+      handler: bookingController.updateBookingStatus,
     },
     // ---------------Admin----------------
     {
