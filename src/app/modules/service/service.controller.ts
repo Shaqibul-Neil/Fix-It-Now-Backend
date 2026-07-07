@@ -72,14 +72,20 @@ class ServiceController {
 
   //-------------Get Technician's Service-------------
   getMyServices = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const services = await this.serviceService.getMyServices(req.user.id);
+    const userId = req.user.id as string;
+    const query = req.query as TListServicesQuery;
+    const { items, meta } = await this.serviceService.getMyServices(
+      userId,
+      query,
+    );
 
     sendResponse({
       res,
       status: httpStatus.OK,
       success: true,
       message: "Your services fetched successfully",
-      data: services,
+      data: items,
+      meta,
     });
   });
 

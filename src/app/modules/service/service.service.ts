@@ -1,5 +1,5 @@
 import httpStatus from "http-status";
-import { Prisma, TRole } from "../../../../generated/prisma/client";
+import { TRole } from "../../../../generated/prisma/client";
 import { AppError } from "../../../utils/appError";
 import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
 import type {
@@ -8,7 +8,8 @@ import type {
   TUpdateServicePayload,
 } from "./service.validation";
 import { prisma } from "../../../lib/prisma";
-import { ensureNotEmptyObject, generateSlug } from "../../../utils/utils";
+import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
+import { buildMyServiceFilter, buildServiceFilter } from "./service.utils";
 
 export class ServiceService {
   //----------Category Must Exist----------
@@ -78,6 +79,7 @@ export class ServiceService {
   ) {
     //get the technician profile
     const technician = await findTechnicianProfileByUserId(userId);
+
     //get the service
     const service = await this.isServiceExist(serviceId);
     if (service.technicianId !== technician.id) {
@@ -105,20 +107,55 @@ export class ServiceService {
   }
 
   //-------------Get Technician's Service-------------
-  async getMyServices(userId: string) {
+  async getMyServices(userId: string, query: TListServicesQuery) {
+    //get the technician profile
     const technician = await findTechnicianProfileByUserId(userId);
-    return prisma.service.findMany({
-      where: { technicianId: technician.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        category: { select: { id: true, name: true, slug: true } },
+
+    // Prepare pagination
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+
+    // Build filter conditions
+    const where = buildMyServiceFilter(technician.id, query);
+
+    //Get the service with data and count total
+    const [items, total] = await prisma.$transaction([
+      prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      }),
+
+      prisma.service.count({
+        where,
+      }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
       },
-    });
+    };
   }
 
   //-------------TECHNICIAN + ADMIN ACTIONS----------
   //--------------Delete Service-------------
   async deleteService(userId: string, role: TRole, serviceId: string) {
+    //Check the service
     const service = await this.isServiceExist(serviceId);
 
     //Technician can only delete their service
@@ -143,6 +180,7 @@ export class ServiceService {
       );
     }
 
+    //Delete service
     await prisma.service.delete({ where: { id: serviceId } });
     return { id: serviceId };
   }
@@ -150,37 +188,16 @@ export class ServiceService {
   //------------------PUBLIC-----------------
   //--------------Get All Service-------------
   async getAllServices(query: TListServicesQuery) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
-    const skip = (page - 1) * limit;
-    const whereCondition: Prisma.ServiceWhereInput = {
-      isActive: true,
-      technician: {
-        isProfileComplete: true,
-        //filtering on technicians profile
-        ...(query.city
-          ? { city: { contains: query.city, mode: "insensitive" as const } }
-          : {}),
-        ...(query.area
-          ? { area: { contains: query.area, mode: "insensitive" as const } }
-          : {}),
-        ...(query.minRating !== undefined
-          ? { averageRating: { gte: query.minRating } }
-          : {}),
-      },
-      //filtering on services
-      ...(query.category
-        ? { category: { slug: generateSlug(query.category) } }
-        : {}),
-      ...(query.search
-        ? { title: { contains: query.search, mode: "insensitive" as const } }
-        : {}),
-    };
+    // Prepare pagination
+    const { page, limit, skip } = getPagination(query.page, query.limit);
 
+    // Build filter conditions
+    const where = buildServiceFilter(query);
+
+    //Get the service with data and count total
     const [items, total] = await prisma.$transaction([
-      //data list
       prisma.service.findMany({
-        where: whereCondition,
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
@@ -206,8 +223,7 @@ export class ServiceService {
           },
         },
       }),
-      //total
-      prisma.service.count({ where: whereCondition }),
+      prisma.service.count({ where }),
     ]);
 
     return { items, meta: { page, limit, total } };

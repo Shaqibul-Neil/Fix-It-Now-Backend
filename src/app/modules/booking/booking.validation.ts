@@ -1,5 +1,7 @@
 import z from "zod";
+import { TBookingStatus } from "../../../../generated/prisma/enums";
 
+//Public Booking Creation
 export const createBookingSchema = z.object({
   body: z.object({
     serviceId: z.uuid("Invalid service id"),
@@ -19,4 +21,42 @@ export const createBookingSchema = z.object({
   }),
 });
 
+//Public Booking Cancel
+export const bookingIdParamSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid booking id"),
+  }),
+});
+
+//Booking Filter
+export const listBookingsSchema = z.object({
+  query: z.object({
+    status: z.enum(TBookingStatus).optional(),
+    category: z.string().trim().min(1).max(120).optional(),
+    search: z.string().optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+});
+
+//Technician Booking Status Update
+export const updateBookingStatusSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid booking id"),
+  }),
+  body: z.object({
+    status: z.enum([
+      TBookingStatus.ACCEPTED,
+      TBookingStatus.DECLINED,
+      TBookingStatus.IN_PROGRESS,
+      TBookingStatus.COMPLETED,
+    ]),
+    note: z.string().trim().max(500).optional(),
+  }),
+});
+
 export type TCreateBookingPayload = z.infer<typeof createBookingSchema>["body"];
+export type TListBookingsQuery = z.infer<typeof listBookingsSchema>["query"];
+export type TUpdateBookingStatusPayload = z.infer<
+  typeof updateBookingStatusSchema
+>["body"];

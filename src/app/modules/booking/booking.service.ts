@@ -1,10 +1,28 @@
 import httpStatus from "http-status";
-import { Prisma, TBookingStatus } from "../../../../generated/prisma/client";
-import type { TCreateBookingPayload } from "./booking.validation";
+import {
+  Prisma,
+  TBookingStatus,
+  TRole,
+} from "../../../../generated/prisma/client";
+import type {
+  TCreateBookingPayload,
+  TListBookingsQuery,
+} from "./booking.validation";
 import { findCustomerProfileByUserId } from "../customer/customer.utils";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { getDayOfWeek, getTimeString } from "../../../utils/date";
+import { CUSTOMER_CANCELABLE } from "./booking.constants";
+import { getPagination } from "../../../utils/utils";
+import { buildBookingFilter } from "./booking.utils";
+import {
+  ADMIN_BOOKING_INCLUDE,
+  BOOKING_LIST_INCLUDE,
+  CUSTOMER_BOOKING_INCLUDE,
+  TECHNICIAN_BOOKING_INCLUDE,
+} from "./booking.include";
+import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
+import { bookingListMapper } from "./booking.mapper";
 
 export class BookingService {
   //Check if the technician is available
@@ -38,6 +56,55 @@ export class BookingService {
         httpStatus.BAD_REQUEST,
       );
     }
+  }
+
+  //Shared Booking List query
+  private async bookingLists(
+    baseWhere: Prisma.BookingWhereInput,
+    query: TListBookingsQuery,
+  ) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+
+    const where = buildBookingFilter(baseWhere, query);
+
+    const [items, total] = await prisma.$transaction([
+      prisma.booking.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: BOOKING_LIST_INCLUDE,
+      }),
+
+      prisma.booking.count({ where }),
+    ]);
+    return {
+      items: items.map(bookingListMapper),
+      meta: {
+        page,
+        limit,
+        total,
+      },
+    };
+  }
+
+  //Booking Details
+  private async bookingDetails(
+    where: Prisma.BookingWhereInput,
+    include: Prisma.BookingInclude,
+  ) {
+    const booking = await prisma.booking.findFirst({
+      where,
+      include,
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
+    }
+
+    return booking;
   }
 
   //-------------CUSTOMER ACTIONS----------
@@ -96,6 +163,115 @@ export class BookingService {
     });
   }
 
-  //--------------Get Own Bookings-------------
+  //--------------Cancel Booking-------------
+  async cancelBooking(userId: string, bookingId: string) {
+    //get the customer information
+    const customer = await findCustomerProfileByUserId(userId);
+
+    //get the booking and check conditions
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, customerId: true, status: true },
+    });
+    if (!booking) {
+      throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
+    }
+    if (booking.customerId !== customer.id) {
+      throw new AppError(
+        "You can only cancel your own bookings.",
+        httpStatus.FORBIDDEN,
+      );
+    }
+    if (!CUSTOMER_CANCELABLE.includes(booking.status)) {
+      throw new AppError(
+        `A booking in ${booking.status} status cannot be cancelled.`,
+        httpStatus.BAD_REQUEST,
+      );
+    }
+
+    return prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: TBookingStatus.CANCELLED,
+        cancelledAt: new Date(),
+        statusHistory: {
+          create: {
+            status: TBookingStatus.CANCELLED,
+            changedById: userId,
+          },
+        },
+      },
+      include: { service: { select: { id: true, title: true } } },
+    });
+  }
+
+  //-----------Get Customer's Bookings List-----------
+  async getCustomerBookings(userId: string, query: TListBookingsQuery) {
+    const customer = await findCustomerProfileByUserId(userId);
+    return this.bookingLists({ customerId: customer.id }, query);
+  }
+
+  //-----------Booking Details-----------
+  async getBookingDetails(userId: string, role: TRole, bookingId: string) {
+    let where: Prisma.BookingWhereInput = {
+      id: bookingId,
+    };
+
+    let include: Prisma.BookingInclude = ADMIN_BOOKING_INCLUDE;
+
+    switch (role) {
+      case TRole.CUSTOMER: {
+        const customer = await findCustomerProfileByUserId(userId);
+        where = {
+          id: bookingId,
+          customerId: customer.id,
+        };
+        include = CUSTOMER_BOOKING_INCLUDE;
+        break;
+      }
+
+      case TRole.TECHNICIAN: {
+        const technician = await findTechnicianProfileByUserId(userId);
+        where = {
+          id: bookingId,
+          technicianId: technician.id,
+        };
+        include = TECHNICIAN_BOOKING_INCLUDE;
+        break;
+      }
+
+      case TRole.ADMIN: {
+        where = {
+          id: bookingId,
+        };
+        include = ADMIN_BOOKING_INCLUDE;
+        break;
+      }
+
+      default:
+        throw new AppError("Unauthorized", httpStatus.UNAUTHORIZED);
+    }
+
+    return this.bookingDetails(where, include);
+  }
+
+  //-------------TECHNICIAN ACTIONS----------
+  //----------Get Technician's Bookings List---------
+  async getTechnicianBookings(userId: string, query: TListBookingsQuery) {
+    const technician = await findTechnicianProfileByUserId(userId);
+
+    return this.bookingLists(
+      {
+        technicianId: technician.id,
+      },
+      query,
+    );
+  }
+
+  //-------------ADMIN ACTIONS----------
+  //----------Get All Bookings List---------
+  async getAllBookings(query: TListBookingsQuery) {
+    return this.bookingLists({}, query);
+  }
 }
 export const bookingService = new BookingService();

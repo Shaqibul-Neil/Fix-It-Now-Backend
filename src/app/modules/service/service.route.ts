@@ -11,25 +11,25 @@ import {
 } from "./service.validation";
 
 export const serviceRoute: TRouteModule = {
-  basePath: "services",
+  basePath: "",
   routes: [
     // public
     {
       method: "get",
-      path: "/",
+      path: "/services",
       middlewares: [validateRequest(listServicesSchema)],
       handler: serviceController.getAllServices,
     },
     // technician — own services
     {
       method: "get",
-      path: "/my-services",
+      path: "/technician/services/my-services",
       middlewares: roleRoute([TRole.TECHNICIAN]),
       handler: serviceController.getMyServices,
     },
     {
       method: "post",
-      path: "/",
+      path: "/services",
       middlewares: roleRoute(
         [TRole.TECHNICIAN],
         validateRequest(createServiceSchema),
@@ -38,17 +38,17 @@ export const serviceRoute: TRouteModule = {
     },
     {
       method: "patch",
-      path: "/:id",
+      path: "/services/:id",
       middlewares: roleRoute(
         [TRole.TECHNICIAN],
         validateRequest(updateServiceSchema),
       ),
       handler: serviceController.updateService,
     },
-    // delete — technician (own) OR admin (any)
+    // delete — technician (own) OR admin
     {
       method: "delete",
-      path: "/:id",
+      path: "/services/:id",
       middlewares: roleRoute(
         [TRole.TECHNICIAN, TRole.ADMIN],
         validateRequest(serviceIdParamSchema),

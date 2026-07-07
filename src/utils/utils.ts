@@ -20,3 +20,13 @@ export const ensureNotEmptyObject = (
     throw new AppError(message, httpStatus.BAD_REQUEST);
   }
 };
+
+//Get pagination
+export const getPagination = (page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+  return {
+    page,
+    limit,
+    skip,
+  };
+};
