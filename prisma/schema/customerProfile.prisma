@@ -16,6 +16,7 @@ model CustomerProfile {
   users    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookings Booking[]
   reviews  Review[]
+  payments Payment[]
 
   @@map("customer_profiles")
 }

@@ -25,7 +25,7 @@ model Booking {
   customer      CustomerProfile        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   technician    TechnicianProfile      @relation(fields: [technicianId], references: [id], onDelete: Cascade)
   service       Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  //payment    Payment?
+  payment    Payment?
   review        Review?
   statusHistory BookingStatusHistory[]
 

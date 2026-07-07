@@ -44,7 +44,7 @@ export const bookingRoute: TRouteModule = {
     {
       method: "get",
       path: "/bookings/:id",
-      middlewares: protectedRoute(validateRequest(listBookingsSchema)),
+      middlewares: protectedRoute(validateRequest(bookingIdParamSchema)),
       handler: bookingController.getBookingDetails,
     },
 
