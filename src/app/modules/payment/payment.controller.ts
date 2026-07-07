@@ -25,5 +25,32 @@ class PaymentController {
       data: result,
     });
   });
+
+  //--------------Gateway Success (public)-------------
+  paymentSuccess = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const tranId = req.body.tran_id as string;
+    const valId = req.body.val_id as string;
+    const ok = await this.paymentService.handleSuccess(tranId, valId);
+    return res.redirect(
+      `${config.app_url}/payment/${ok ? "success" : "fail"}?tran_id=${tranId}`,
+    );
+  });
+
+  //--------------Gateway Fail (public)-------------
+  paymentFail = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const tranId = req.body.tran_id as string;
+    await this.paymentService.handleFailure(tranId);
+    return res.redirect(`${config.app_url}/payment/fail?tran_id=${tranId}`);
+  });
+
+  //--------------Gateway Cancel (public)-------------
+  paymentCancel = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const tranId = req.body.tran_id as string;
+    await this.paymentService.handleFailure(tranId);
+    return res.redirect(`${config.app_url}/payment/cancel?tran_id=${tranId}`);
+  });
+
+  //--------------Customer payment history-------------
+  //--------------Payment details-------------
 }
 export const paymentController = new PaymentController(paymentService);

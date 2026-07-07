@@ -17,6 +17,20 @@ type TInitInput = {
   productName: string;
 };
 
+type TSSLInitResponse = {
+  status?: string;
+  GatewayPageURL?: string;
+  failedreason?: string;
+};
+
+type TSSLValidationResponse = {
+  status?: string;
+  tran_id?: string;
+  amount?: string;
+  card_type?: string;
+};
+
+// Ask SSLCommerz for a hosted payment page, return its URL.
 export const initSSLCommerzPayment = async (
   input: TInitInput,
 ): Promise<string> => {
@@ -41,12 +55,16 @@ export const initSSLCommerzPayment = async (
     num_of_item: "1",
   });
 
-  const { data } = await axios.post(SSL_CONFIG.initUrl, body, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+  const { data } = await axios.post<TSSLInitResponse>(
+    SSL_CONFIG.initUrl,
+    body,
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
     },
-  });
-  console.log(data);
+  );
+
   if (data.status !== "SUCCESS" || !data.GatewayPageURL) {
     throw new AppError(
       data.failedreason || "Failed to initialize payment gateway.",
@@ -54,4 +72,20 @@ export const initSSLCommerzPayment = async (
     );
   }
   return data.GatewayPageURL;
+};
+
+// Verify a completed transaction
+export const validateSSLCommerzPayment = async (valId: string) => {
+  const { data } = await axios.get<TSSLValidationResponse>(
+    SSL_CONFIG.validationUrl,
+    {
+      params: {
+        val_id: valId,
+        store_id: config.ssl.store_id,
+        store_passwd: config.ssl.store_passwd,
+        format: "json",
+      },
+    },
+  );
+  return data;
 };

@@ -18,5 +18,22 @@ export const paymentRoute: TRouteModule = {
       ),
       handler: paymentController.createPayment,
     },
+
+    // ----------Gateway callbacks (PUBLIC)-------------
+    {
+      method: "post",
+      path: "/success",
+      handler: paymentController.paymentSuccess,
+    },
+    {
+      method: "post",
+      path: "/fail",
+      handler: paymentController.paymentFail,
+    },
+    {
+      method: "post",
+      path: "/cancel",
+      handler: paymentController.paymentCancel,
+    },
   ],
 };

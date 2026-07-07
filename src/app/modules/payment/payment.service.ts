@@ -8,8 +8,12 @@ import {
   TPaymentProvider,
   TPaymentStatus,
 } from "../../../../generated/prisma/enums";
-import { initSSLCommerzPayment } from "./payment.utils";
+import {
+  initSSLCommerzPayment,
+  validateSSLCommerzPayment,
+} from "./payment.utils";
 import config from "../../../config";
+import type { Prisma } from "../../../../generated/prisma/client";
 
 export class PaymentService {
   //-------------CUSTOMER ACTIONS----------
@@ -96,7 +100,7 @@ export class PaymentService {
     const paymentUrl = await initSSLCommerzPayment({
       transactionId,
       amount: Number(booking.amount),
-      successUrl: `${config.url}/api/payment/success`,
+      successUrl: `${config.url}/api/payments/success`,
       failUrl: `${config.url}/api/payments/fail`,
       cancelUrl: `${config.url}/api/payments/cancel`,
       customerName:
@@ -112,8 +116,82 @@ export class PaymentService {
 
   //-------------GATEWAY CALLBACKS----------
   //---------Success: verify + mark paid----------
+  async handleSuccess(transactionId: string, valId: string): Promise<boolean> {
+    //get the payment
+    const payment = await prisma.payment.findUnique({
+      where: { transactionId },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        bookingId: true,
+        booking: {
+          select: {
+            customer: { select: { userId: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) return false;
+
+    //already processed - Idempotent
+    if (payment.status === TPaymentStatus.SUCCESS) return true;
+
+    // verify a completed transaction
+    const validation = await validateSSLCommerzPayment(valId);
+    const isValid =
+      validation.status === "VALID" || validation.status === "VALIDATED";
+    const amountMatches = Number(validation.amount) === Number(payment.amount);
+
+    if (!isValid || !amountMatches) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: TPaymentStatus.FAILED },
+      });
+      return false;
+    }
+
+    // mark paid
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: TPaymentStatus.SUCCESS,
+          valId,
+          method: validation.card_type ?? null,
+          paidAt: new Date(),
+        },
+      }),
+      prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: {
+          status: TBookingStatus.PAID,
+          statusHistory: {
+            create: {
+              status: TBookingStatus.PAID,
+              changedById: payment.booking.customer.userId,
+            },
+          },
+        },
+      }),
+    ]);
+    return true;
+  }
 
   //-----------Fail / Cancel: mark failed-----------
+  async handleFailure(transactionId: string): Promise<void> {
+    const payment = await prisma.payment.findUnique({
+      where: { transactionId },
+      select: { id: true, status: true },
+    });
+    if (!payment || payment.status === TPaymentStatus.SUCCESS) return;
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: TPaymentStatus.FAILED },
+    });
+  }
 
   //----------Customer payment history-----------
   //--------------Payment details-------------
