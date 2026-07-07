@@ -48,12 +48,6 @@ export class ServiceService {
   async createService(userId: string, payload: TCreateServicePayload) {
     //get the technician profile
     const technician = await findTechnicianProfileByUserId(userId);
-    if (!technician) {
-      throw new AppError(
-        "Technician profile not found. Please complete your onboarding first.",
-        httpStatus.NOT_FOUND,
-      );
-    }
 
     //get the category
     await this.isCategoryExist(payload.categoryId);
@@ -84,12 +78,6 @@ export class ServiceService {
   ) {
     //get the technician profile
     const technician = await findTechnicianProfileByUserId(userId);
-    if (!technician) {
-      throw new AppError(
-        "Technician profile not found. Please complete your onboarding first.",
-        httpStatus.NOT_FOUND,
-      );
-    }
     //get the service
     const service = await this.isServiceExist(serviceId);
     if (service.technicianId !== technician.id) {
@@ -119,13 +107,6 @@ export class ServiceService {
   //-------------Get Technician's Service-------------
   async getMyServices(userId: string) {
     const technician = await findTechnicianProfileByUserId(userId);
-    if (!technician) {
-      throw new AppError(
-        "Technician profile not found. Please complete your onboarding first.",
-        httpStatus.NOT_FOUND,
-      );
-    }
-
     return prisma.service.findMany({
       where: { technicianId: technician.id },
       orderBy: { createdAt: "desc" },
@@ -143,12 +124,6 @@ export class ServiceService {
     //Technician can only delete their service
     if (role === TRole.TECHNICIAN) {
       const technician = await findTechnicianProfileByUserId(userId);
-      if (!technician) {
-        throw new AppError(
-          "Technician profile not found. Please complete your onboarding first.",
-          httpStatus.NOT_FOUND,
-        );
-      }
       if (service.technicianId !== technician.id) {
         throw new AppError(
           "You can only delete your own services.",

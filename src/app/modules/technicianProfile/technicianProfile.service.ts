@@ -38,13 +38,7 @@ export class TechnicianProfileService {
     userId: string,
     payload: TUpdateTechnicianProfilePayload,
   ) {
-    const existingProfile = await findTechnicianProfileByUserId(userId);
-    if (!existingProfile) {
-      throw new AppError(
-        "Profile not found. Please complete your onboarding first.",
-        httpStatus.NOT_FOUND,
-      );
-    }
+    await findTechnicianProfileByUserId(userId);
     const { basicInfo, pricing, location } = payload;
 
     //if no data is sent
