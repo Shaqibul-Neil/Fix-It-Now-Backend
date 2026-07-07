@@ -23,6 +23,10 @@ const config = {
       expires_in: (env.JWT_REFRESH_EXPIRY as string) ?? "7d",
     },
   },
+  ssl: {
+    store_id: env.SSL_STORE_ID as string,
+    store_passwd: env.SSL_STORE_PASSWORD as string,
+  },
 };
 
 export default config;
