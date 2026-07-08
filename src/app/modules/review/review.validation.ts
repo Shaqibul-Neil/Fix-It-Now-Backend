@@ -29,8 +29,20 @@ export const updateReviewStatusSchema = z.object({
   body: z.object({ status: z.enum(TReviewStatus) }),
 });
 
+//Review Filter
+export const listReviewSchema = z.object({
+  query: z.object({
+    status: z.enum(TReviewStatus).optional(),
+    rating: z.coerce.number().int().min(1).max(5).optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+});
+
 export type TCreateReviewPayload = z.infer<typeof createReviewSchema>["body"];
 export type TUpdateReviewPayload = z.infer<typeof updateReviewSchema>["body"];
 export type TUpdateReviewStatusPayload = z.infer<
   typeof updateReviewStatusSchema
 >["body"];
+
+export type TListReviewQuery = z.infer<typeof listReviewSchema>["query"];

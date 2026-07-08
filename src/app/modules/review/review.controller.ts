@@ -5,6 +5,7 @@ import { sendResponse } from "../../../utils/sendResponse";
 import { reviewService, type ReviewService } from "./review.service";
 import type {
   TCreateReviewPayload,
+  TListReviewQuery,
   TUpdateReviewPayload,
   TUpdateReviewStatusPayload,
 } from "./review.validation";
@@ -27,6 +28,7 @@ class ReviewController {
       data: result,
     });
   });
+
   //--------------Update own Review-------------
   updateReview = asyncHandler(async (req: TRequest, res: TResponse) => {
     const reviewId = req.params.id as string;
@@ -46,7 +48,61 @@ class ReviewController {
     });
   });
 
+  //--------------My Reviews-------------
+  getMyReviews = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id;
+    const query = req.query as TListReviewQuery;
+    const { items, meta } = await this.reviewService.getMyReviews(
+      userId,
+      query,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Reviews fetched successfully",
+      data: items,
+      meta,
+    });
+  });
+
+  //-------------PUBLIC ACTIONS----------
+  getTechnicianReviews = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const technicianId = req.params.id as string;
+    const query = req.query as TListReviewQuery;
+    const { items, meta } = await this.reviewService.getTechnicianReviews(
+      technicianId,
+      query,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Reviews fetched successfully",
+      data: items,
+      meta,
+    });
+  });
+
   //-------------ADMIN ACTIONS----------
+  //--------------All Review's-------------
+  getAllReviews = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const query = req.query as TListReviewQuery;
+    const { items, meta } = await this.reviewService.getAllReviews(query);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Reviews fetched successfully",
+      data: items,
+      meta,
+    });
+  });
+
+  // Moderate: PENDING <-> PUBLISHED / HIDDEN / REJECTED
   moderateReview = asyncHandler(async (req: TRequest, res: TResponse) => {
     const reviewId = req.params.id as string;
     const { status } = req.body as TUpdateReviewStatusPayload;

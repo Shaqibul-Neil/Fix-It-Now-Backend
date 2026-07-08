@@ -2,6 +2,7 @@ import {
   TReviewStatus,
   type Prisma,
 } from "../../../../generated/prisma/client";
+import type { TListReviewQuery } from "./review.validation";
 
 export const computeTechnicianRating = async (
   tx: Prisma.TransactionClient,
@@ -23,4 +24,17 @@ export const computeTechnicianRating = async (
       totalReviews: aggregate._count.rating,
     },
   });
+};
+
+export const buildReviewFilter = (
+  baseWhere: Prisma.ReviewWhereInput,
+  query: TListReviewQuery,
+): Prisma.ReviewWhereInput => {
+  return {
+    ...baseWhere,
+    ...(query.status && {
+      status: query.status,
+    }),
+    ...(query.rating && { rating: query.rating }),
+  };
 };

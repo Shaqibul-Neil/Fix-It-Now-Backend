@@ -4,17 +4,44 @@ import { AppError } from "../../../utils/appError";
 import { findCustomerProfileByUserId } from "../customer/customer.utils";
 import type {
   TCreateReviewPayload,
+  TListReviewQuery,
   TUpdateReviewPayload,
 } from "./review.validation";
 import {
   TBookingStatus,
   TReviewStatus,
 } from "../../../../generated/prisma/enums";
-import { ensureNotEmptyObject } from "../../../utils/utils";
+import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
 import { REVIEW_SELECT } from "./review.include";
-import { computeTechnicianRating } from "./review.utils";
+import { buildReviewFilter, computeTechnicianRating } from "./review.utils";
+import type { Prisma } from "../../../../generated/prisma/client";
 
 export class ReviewService {
+  // Shared review list query
+  private async reviewLists(
+    baseWhere: Prisma.ReviewWhereInput,
+    query: TListReviewQuery,
+  ) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+
+    const where = buildReviewFilter(baseWhere, query);
+
+    const [items, total] = await prisma.$transaction([
+      prisma.review.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: REVIEW_SELECT,
+      }),
+      prisma.review.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: { page, limit, total },
+    };
+  }
   //-------------CUSTOMER ACTIONS----------
   //--------------Create Review-------------
   async createReview(userId: string, payload: TCreateReviewPayload) {
@@ -114,15 +141,26 @@ export class ReviewService {
   async deleteReview() {}
 
   //--------------My Reviews-------------
-  async getMyReviews() {
-    //what about technician's own reviews if he wants to check
+  async getMyReviews(userId: string, query: TListReviewQuery) {
+    const customer = await findCustomerProfileByUserId(userId);
+    return this.reviewLists({ customerId: customer.id }, query);
   }
 
-  //-------------PUBLIC ACTIONS----------
-  async getTechnicianReviews() {}
+  //-------------PUBLIC ACTIONS--------------
+  //--------------Technician's Review-------------
+  async getTechnicianReviews(technicianId: string, query: TListReviewQuery) {
+    return this.reviewLists(
+      { technicianId, status: TReviewStatus.PUBLISHED },
+      query,
+    );
+  }
 
   //-------------ADMIN ACTIONS----------
-  async getAllReviews() {}
+  //--------------All Review's-------------
+  async getAllReviews(query: TListReviewQuery) {
+    return this.reviewLists({}, query);
+  }
+
   async getReviewDetails() {}
 
   // Moderate: PENDING <-> PUBLISHED / HIDDEN / REJECTED
