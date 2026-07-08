@@ -3,6 +3,8 @@ import axios from "axios";
 import config from "../../../config";
 import { SSL_CONFIG } from "./payment.constants";
 import { AppError } from "../../../utils/appError";
+import type { Prisma } from "../../../../generated/prisma/client";
+import type { TListPaymentsQuery } from "./payment.validation";
 
 type TInitInput = {
   transactionId: string;
@@ -88,4 +90,17 @@ export const validateSSLCommerzPayment = async (valId: string) => {
     },
   );
   return data;
+};
+
+//Build Payment Queries
+export const buildPaymentFilter = (
+  baseWhere: Prisma.PaymentWhereInput,
+  query: TListPaymentsQuery,
+): Prisma.PaymentWhereInput => {
+  return {
+    ...baseWhere,
+    ...(query.status && {
+      status: query.status,
+    }),
+  };
 };

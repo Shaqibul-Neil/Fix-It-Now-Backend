@@ -17,7 +17,7 @@ export const authorize = (...roles: TUserRoles[]) => {
     try {
       if (!roles.includes(req.user.role))
         throw new AppError(
-          `Forbidden Access - Access denied. Role '${req.user.role}' lacks necessary privileges.`,
+          `Forbidden Access - Access denied. This Role lacks necessary privileges.`,
           httpStatus.FORBIDDEN,
         );
       next();

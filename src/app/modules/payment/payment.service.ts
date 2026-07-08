@@ -9,16 +9,47 @@ import {
   TPaymentStatus,
 } from "../../../../generated/prisma/enums";
 import {
+  buildPaymentFilter,
   initSSLCommerzPayment,
   validateSSLCommerzPayment,
 } from "./payment.utils";
 import config from "../../../config";
 import type { Prisma } from "../../../../generated/prisma/client";
+import type { TListPaymentsQuery } from "./payment.validation";
+import { getPagination } from "../../../utils/utils";
+import { PAYMENT_LIST_SELECT } from "./payment.include";
+import { paymentListMapper } from "./payment.mapper";
 
 export class PaymentService {
+  //Get Payment List
+  private async paymentLists(
+    baseWhere: Prisma.PaymentWhereInput,
+    query: TListPaymentsQuery,
+  ) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+    const where = buildPaymentFilter(baseWhere, query);
+    const [items, total] = await prisma.$transaction([
+      prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: PAYMENT_LIST_SELECT,
+      }),
+      prisma.payment.count({ where }),
+    ]);
+
+    const result = items.map((payment) => {
+      return paymentListMapper(payment);
+    });
+
+    return {
+      items: result,
+      meta: { page, limit, total },
+    };
+  }
   //-------------CUSTOMER ACTIONS----------
   //---------Create Payment (init gateway)-----------
-
   async createPayment(userId: string, bookingId: string) {
     //get the customer
     const customer = await findCustomerProfileByUserId(userId);
@@ -194,7 +225,18 @@ export class PaymentService {
   }
 
   //----------Customer payment history-----------
+  async getMyPaymentsList(userId: string, query: TListPaymentsQuery) {
+    const customer = await findCustomerProfileByUserId(userId);
+    return this.paymentLists({ customerId: customer.id }, query);
+  }
+
   //--------------Payment details-------------
+
+  //-------------ADMIN ACTIONS----------
+  //----------All payment history-----------
+  async getAllPaymentLists(query: TListPaymentsQuery) {
+    return this.paymentLists({}, query);
+  }
 }
 
 export const paymentService = new PaymentService();

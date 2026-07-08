@@ -3,15 +3,15 @@ import { validateRequest } from "../../../middlewares/validate";
 import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { paymentController } from "./payment.controller";
-import { createPaymentSchema } from "./payment.validation";
+import { createPaymentSchema, listPaymentsSchema } from "./payment.validation";
 
 export const paymentRoute: TRouteModule = {
-  basePath: "payments",
+  basePath: "",
   routes: [
     // ---------------Customer----------------
     {
       method: "post",
-      path: "/create",
+      path: "/payments/create",
       middlewares: roleRoute(
         [TRole.CUSTOMER],
         validateRequest(createPaymentSchema),
@@ -19,20 +19,40 @@ export const paymentRoute: TRouteModule = {
       handler: paymentController.createPayment,
     },
 
+    {
+      method: "get",
+      path: "/payments/my-payments",
+      middlewares: roleRoute(
+        [TRole.CUSTOMER],
+        validateRequest(listPaymentsSchema),
+      ),
+      handler: paymentController.getMyPayments,
+    },
+
+    // ---------------Admin----------------
+    {
+      method: "get",
+      path: "/admin/payments",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(listPaymentsSchema),
+      ),
+      handler: paymentController.getAllPayments,
+    },
     // ----------Gateway callbacks (PUBLIC)-------------
     {
       method: "post",
-      path: "/success",
+      path: "/payments/success",
       handler: paymentController.paymentSuccess,
     },
     {
       method: "post",
-      path: "/fail",
+      path: "/payments/fail",
       handler: paymentController.paymentFail,
     },
     {
       method: "post",
-      path: "/cancel",
+      path: "/payments/cancel",
       handler: paymentController.paymentCancel,
     },
   ],

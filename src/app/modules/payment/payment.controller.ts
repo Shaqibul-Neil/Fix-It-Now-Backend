@@ -4,11 +4,14 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import { sendResponse } from "../../../utils/sendResponse";
 import config from "../../../config";
 import { paymentService, type PaymentService } from "./payment.service";
-import type { TCreatePaymentPayload } from "./payment.validation";
+import type {
+  TCreatePaymentPayload,
+  TListPaymentsQuery,
+} from "./payment.validation";
 
 class PaymentController {
   constructor(private paymentService: PaymentService) {}
-
+  //-------------CUSTOMER ACTIONS----------
   //--------------Create Payment-------------
   createPayment = asyncHandler(async (req: TRequest, res: TResponse) => {
     const { bookingId } = req.body as TCreatePaymentPayload;
@@ -51,6 +54,38 @@ class PaymentController {
   });
 
   //--------------Customer payment history-------------
+  getMyPayments = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id as string;
+    const query = req.query as TListPaymentsQuery;
+    const { items, meta } = await this.paymentService.getMyPaymentsList(
+      userId,
+      query,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Payments fetched successfully",
+      data: items,
+      meta,
+    });
+  });
   //--------------Payment details-------------
+
+  //-------------ADMIN ACTIONS----------
+  getAllPayments = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const query = req.query as TListPaymentsQuery;
+    const { items, meta } = await this.paymentService.getAllPaymentLists(query);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Payments fetched successfully",
+      data: items,
+      meta,
+    });
+  });
 }
 export const paymentController = new PaymentController(paymentService);
