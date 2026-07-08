@@ -1,4 +1,5 @@
 import { validateRequest } from "../../../middlewares/validate";
+import { protectedRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { authController } from "./auth.controller";
 import {
@@ -25,6 +26,12 @@ export const authRoute: TRouteModule = {
       method: "post",
       path: "/refresh-token",
       handler: authController.refreshToken,
+    },
+    {
+      method: "get",
+      path: "/me",
+      middlewares: protectedRoute(),
+      handler: authController.getMe,
     },
   ],
 };

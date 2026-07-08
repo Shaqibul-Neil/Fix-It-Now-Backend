@@ -115,6 +115,30 @@ export class BookingService {
       payload.scheduledAt,
     );
 
+    // Prevent double-booking the same technician at the same time.
+    const clashingBooking = await prisma.booking.findFirst({
+      where: {
+        technicianId: service.technicianId,
+        scheduledAt: payload.scheduledAt,
+        status: {
+          in: [
+            TBookingStatus.REQUESTED,
+            TBookingStatus.ACCEPTED,
+            TBookingStatus.PAID,
+            TBookingStatus.IN_PROGRESS,
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (clashingBooking) {
+      throw new AppError(
+        "Technician is already booked at the selected time.",
+        httpStatus.CONFLICT,
+      );
+    }
+
     //create booking
     return prisma.booking.create({
       data: {

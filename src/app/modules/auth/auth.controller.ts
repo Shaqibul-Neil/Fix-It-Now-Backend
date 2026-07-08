@@ -76,6 +76,19 @@ class AuthController {
       data: { accessToken },
     });
   });
+
+  //----------Current User (me)---------
+  getMe = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const user = await this.authService.currentUser(req.user.id);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "User fetched successfully",
+      data: user,
+    });
+  });
 }
 
 export const authController = new AuthController(authService);
