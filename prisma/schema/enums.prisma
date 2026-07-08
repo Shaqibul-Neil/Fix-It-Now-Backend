@@ -40,3 +40,10 @@ enum TDayOfWeek {
   SATURDAY
   SUNDAY
 }
+
+enum TReviewStatus {
+  PENDING
+  PUBLISHED
+  HIDDEN
+  REJECTED
+}

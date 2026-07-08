@@ -5,9 +5,9 @@ model AvailabilitySlot {
 
   dayOfWeek TDayOfWeek @map("day_of_week")
 
-  startTime String @db.VarChar(5) @map("start_time")
+  startTime String @map("start_time") @db.VarChar(5)
 
-  endTime String @db.VarChar(5) @map("end_time")
+  endTime String @map("end_time") @db.VarChar(5)
 
   isActive Boolean @default(true) @map("is_active")
 

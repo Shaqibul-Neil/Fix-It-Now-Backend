@@ -14,6 +14,7 @@ model Service {
   technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
   category   Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   bookings   Booking[]
+  reviews    Review[]
 
   @@index([technicianId])
   @@index([categoryId])
