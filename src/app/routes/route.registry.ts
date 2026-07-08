@@ -7,6 +7,7 @@ import { paymentRoute } from "../modules/payment/payment.route";
 import { reviewRoute } from "../modules/review/review.route";
 import { serviceRoute } from "../modules/service/service.route";
 import { technicianRoute } from "../modules/technician/technician.route";
+import { userRoute } from "../modules/user/user.route";
 import type { TRouteModule } from "./route.types";
 
 export const routeRegistry: TRouteModule[] = [
@@ -19,4 +20,5 @@ export const routeRegistry: TRouteModule[] = [
   paymentRoute,
   reviewRoute,
   customerRoute,
+  userRoute,
 ];

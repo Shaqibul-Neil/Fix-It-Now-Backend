@@ -8,6 +8,7 @@ import { CUSTOMER_PROFILE_SELECT } from "./customer.include";
 import { customerProfileMapper } from "./customer.mapper";
 
 export class CustomerService {
+  //-------------CUSTOMER ACTIONS--------------
   //--------------Get Own Profile-------------
   async getMyProfile(userId: string) {
     const profile = await prisma.customerProfile.findUnique({

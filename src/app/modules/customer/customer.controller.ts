@@ -10,7 +10,8 @@ class CustomerController {
 
   //--------------Get Own Profile-------------
   getMyProfile = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const result = await this.customerService.getMyProfile(req.user.id);
+    const userId = req.user.id as string;
+    const result = await this.customerService.getMyProfile(userId);
     sendResponse({
       res,
       status: httpStatus.OK,
@@ -22,11 +23,9 @@ class CustomerController {
 
   //--------------Update Profile-------------
   updateProfile = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id as string;
     const payload = req.body as TUpdateCustomerProfilePayload;
-    const result = await this.customerService.updateProfile(
-      req.user.id,
-      payload,
-    );
+    const result = await this.customerService.updateProfile(userId, payload);
     sendResponse({
       res,
       status: httpStatus.OK,
