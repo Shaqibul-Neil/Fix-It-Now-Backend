@@ -1,9 +1,9 @@
 import type { Prisma } from "../../../../generated/prisma/client";
-import type { BOOKING_LIST_INCLUDE } from "./booking.include";
+import type { BOOKING_LIST_SELECT } from "./booking.include";
 
 export const bookingListMapper = (
   booking: Prisma.BookingGetPayload<{
-    select: typeof BOOKING_LIST_INCLUDE;
+    select: typeof BOOKING_LIST_SELECT;
   }>,
 ) => ({
   id: booking.id,

@@ -8,6 +8,7 @@ import type {
   TCreatePaymentPayload,
   TListPaymentsQuery,
 } from "./payment.validation";
+import type { TRole } from "../../../../generated/prisma/enums";
 
 class PaymentController {
   constructor(private paymentService: PaymentService) {}
@@ -71,7 +72,26 @@ class PaymentController {
       meta,
     });
   });
+
   //--------------Payment details-------------
+  getPaymentDetails = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id as string;
+    const paymentId = req.params.id as string;
+    const role = req.user.role as TRole;
+    const result = await this.paymentService.getPaymentDetails(
+      userId,
+      paymentId,
+      role,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Payment fetched successfully",
+      data: result,
+    });
+  });
 
   //-------------ADMIN ACTIONS----------
   getAllPayments = asyncHandler(async (req: TRequest, res: TResponse) => {

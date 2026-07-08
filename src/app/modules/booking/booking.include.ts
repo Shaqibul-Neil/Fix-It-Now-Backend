@@ -1,6 +1,6 @@
 import type { Prisma } from "../../../../generated/prisma/client";
 
-export const BOOKING_LIST_INCLUDE = {
+export const BOOKING_LIST_SELECT = {
   id: true,
   status: true,
   amount: true,

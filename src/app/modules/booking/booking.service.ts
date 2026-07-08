@@ -16,7 +16,7 @@ import { getDayOfWeek, getTimeString } from "../../../utils/date";
 import { CUSTOMER_CANCELABLE } from "./booking.constants";
 import { getPagination } from "../../../utils/utils";
 import { buildBookingFilter, getBookingInclude } from "./booking.utils";
-import { BOOKING_LIST_INCLUDE } from "./booking.include";
+import { BOOKING_LIST_SELECT } from "./booking.include";
 import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
 import { bookingListMapper } from "./booking.mapper";
 
@@ -71,7 +71,7 @@ export class BookingService {
         orderBy: {
           createdAt: "desc",
         },
-        select: BOOKING_LIST_INCLUDE,
+        select: BOOKING_LIST_SELECT,
       }),
 
       prisma.booking.count({ where }),

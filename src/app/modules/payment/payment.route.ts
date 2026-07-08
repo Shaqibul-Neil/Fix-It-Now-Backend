@@ -3,7 +3,11 @@ import { validateRequest } from "../../../middlewares/validate";
 import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { paymentController } from "./payment.controller";
-import { createPaymentSchema, listPaymentsSchema } from "./payment.validation";
+import {
+  createPaymentSchema,
+  listPaymentsSchema,
+  paymentIdParamSchema,
+} from "./payment.validation";
 
 export const paymentRoute: TRouteModule = {
   basePath: "",
@@ -27,6 +31,15 @@ export const paymentRoute: TRouteModule = {
         validateRequest(listPaymentsSchema),
       ),
       handler: paymentController.getMyPayments,
+    },
+    {
+      method: "get",
+      path: "/payments/:id",
+      middlewares: roleRoute(
+        [TRole.CUSTOMER, TRole.ADMIN],
+        validateRequest(paymentIdParamSchema),
+      ),
+      handler: paymentController.getPaymentDetails,
     },
 
     // ---------------Admin----------------

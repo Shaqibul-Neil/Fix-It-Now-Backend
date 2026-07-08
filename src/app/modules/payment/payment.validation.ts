@@ -18,5 +18,12 @@ export const listPaymentsSchema = z.object({
   }),
 });
 
+//Payment details param
+export const paymentIdParamSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid payment id"),
+  }),
+});
+
 export type TCreatePaymentPayload = z.infer<typeof createPaymentSchema>["body"];
 export type TListPaymentsQuery = z.infer<typeof listPaymentsSchema>["query"];

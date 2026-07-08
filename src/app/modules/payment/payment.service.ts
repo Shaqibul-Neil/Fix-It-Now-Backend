@@ -14,11 +14,11 @@ import {
   validateSSLCommerzPayment,
 } from "./payment.utils";
 import config from "../../../config";
-import type { Prisma } from "../../../../generated/prisma/client";
+import { TRole, type Prisma } from "../../../../generated/prisma/client";
 import type { TListPaymentsQuery } from "./payment.validation";
 import { getPagination } from "../../../utils/utils";
-import { PAYMENT_LIST_SELECT } from "./payment.include";
-import { paymentListMapper } from "./payment.mapper";
+import { PAYMENT_DETAILS_SELECT, PAYMENT_LIST_SELECT } from "./payment.include";
+import { paymentDetailsMapper, paymentListMapper } from "./payment.mapper";
 
 export class PaymentService {
   //Get Payment List
@@ -48,6 +48,7 @@ export class PaymentService {
       meta: { page, limit, total },
     };
   }
+
   //-------------CUSTOMER ACTIONS----------
   //---------Create Payment (init gateway)-----------
   async createPayment(userId: string, bookingId: string) {
@@ -230,8 +231,31 @@ export class PaymentService {
     return this.paymentLists({ customerId: customer.id }, query);
   }
 
-  //--------------Payment details-------------
+  //--------------Get Payment details-------------
+  async getPaymentDetails(userId: string, paymentId: string, role: TRole) {
+    const where: Prisma.PaymentWhereInput = { id: paymentId };
 
+    // customer sees only their own payment
+    if (role === TRole.CUSTOMER) {
+      const customer = await findCustomerProfileByUserId(userId);
+      where.customerId = customer.id;
+    } else if (role !== TRole.ADMIN) {
+      throw new AppError(
+        "You don't have permission to view this payment.",
+        httpStatus.FORBIDDEN,
+      );
+    }
+    const payment = await prisma.payment.findFirst({
+      where,
+      select: PAYMENT_DETAILS_SELECT,
+    });
+
+    if (!payment) {
+      throw new AppError("Payment not found.", httpStatus.NOT_FOUND);
+    }
+
+    return paymentDetailsMapper(payment);
+  }
   //-------------ADMIN ACTIONS----------
   //----------All payment history-----------
   async getAllPaymentLists(query: TListPaymentsQuery) {
