@@ -1,0 +1,64 @@
+import httpStatus from "http-status";
+import type { TRequest, TResponse } from "../../../types/express.types";
+import { asyncHandler } from "../../../utils/asyncHandler";
+import { sendResponse } from "../../../utils/sendResponse";
+import { reviewService, type ReviewService } from "./review.service";
+import type {
+  TCreateReviewPayload,
+  TUpdateReviewPayload,
+  TUpdateReviewStatusPayload,
+} from "./review.validation";
+
+class ReviewController {
+  constructor(private reviewService: ReviewService) {}
+
+  //-------------CUSTOMER ACTIONS----------
+  //--------------Create Review-------------
+  createReview = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id as string;
+    const payload = req.body as TCreateReviewPayload;
+    const result = await this.reviewService.createReview(userId, payload);
+
+    sendResponse({
+      res,
+      status: httpStatus.CREATED,
+      success: true,
+      message: "Review submitted successfully",
+      data: result,
+    });
+  });
+  //--------------Update own Review-------------
+  updateReview = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const reviewId = req.params.id as string;
+    const payload = req.body as TUpdateReviewPayload;
+    const result = await this.reviewService.updateReview(
+      req.user.id,
+      reviewId,
+      payload,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Review updated successfully",
+      data: result,
+    });
+  });
+
+  //-------------ADMIN ACTIONS----------
+  moderateReview = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const reviewId = req.params.id as string;
+    const { status } = req.body as TUpdateReviewStatusPayload;
+    const result = await this.reviewService.moderateReview(reviewId, status);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Review status updated successfully",
+      data: result,
+    });
+  });
+}
+export const reviewController = new ReviewController(reviewService);
