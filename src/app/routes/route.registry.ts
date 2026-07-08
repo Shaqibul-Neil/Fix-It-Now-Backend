@@ -5,12 +5,12 @@ import { categoryRoute } from "../modules/category/category.route";
 import { paymentRoute } from "../modules/payment/payment.route";
 import { reviewRoute } from "../modules/review/review.route";
 import { serviceRoute } from "../modules/service/service.route";
-import { technicianProfileRoute } from "../modules/technicianProfile/technicianProfile.route";
+import { technicianRoute } from "../modules/technician/technician.route";
 import type { TRouteModule } from "./route.types";
 
 export const routeRegistry: TRouteModule[] = [
   authRoute,
-  technicianProfileRoute,
+  technicianRoute,
   categoryRoute,
   serviceRoute,
   availabilitySlotRoute,

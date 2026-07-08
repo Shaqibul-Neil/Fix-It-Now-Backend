@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { TRole } from "../../../../generated/prisma/client";
 import { AppError } from "../../../utils/appError";
-import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.utils";
 import type {
   TCreateServicePayload,
   TListServicesQuery,

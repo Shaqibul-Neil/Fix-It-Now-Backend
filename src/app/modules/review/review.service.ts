@@ -5,11 +5,13 @@ import { findCustomerProfileByUserId } from "../customer/customer.utils";
 import type {
   TCreateReviewPayload,
   TListReviewQuery,
+  TPublicReviewQuery,
   TUpdateReviewPayload,
 } from "./review.validation";
 import {
   TBookingStatus,
   TReviewStatus,
+  TRole,
 } from "../../../../generated/prisma/enums";
 import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
 import { REVIEW_SELECT } from "./review.include";
@@ -138,7 +140,32 @@ export class ReviewService {
   }
 
   //--------------Delete Review (own = customer, any = admin)-------------
-  async deleteReview() {}
+  async deleteReview(userId: string, role: TRole, reviewId: string) {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { id: true, customerId: true, technicianId: true },
+    });
+    if (!review) {
+      throw new AppError("Review not found.", httpStatus.NOT_FOUND);
+    }
+
+    if (role === TRole.CUSTOMER) {
+      const customer = await findCustomerProfileByUserId(userId);
+      if (review.customerId !== customer.id) {
+        throw new AppError(
+          "You can only delete your own reviews.",
+          httpStatus.FORBIDDEN,
+        );
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.review.delete({ where: { id: reviewId } });
+      await computeTechnicianRating(tx, review.technicianId);
+    });
+
+    return { id: reviewId };
+  }
 
   //--------------My Reviews-------------
   async getMyReviews(userId: string, query: TListReviewQuery) {
@@ -148,7 +175,7 @@ export class ReviewService {
 
   //-------------PUBLIC ACTIONS--------------
   //--------------Technician's Review-------------
-  async getTechnicianReviews(technicianId: string, query: TListReviewQuery) {
+  async getTechnicianReviews(technicianId: string, query: TPublicReviewQuery) {
     return this.reviewLists(
       { technicianId, status: TReviewStatus.PUBLISHED },
       query,
@@ -160,8 +187,6 @@ export class ReviewService {
   async getAllReviews(query: TListReviewQuery) {
     return this.reviewLists({}, query);
   }
-
-  async getReviewDetails() {}
 
   // Moderate: PENDING <-> PUBLISHED / HIDDEN / REJECTED
   async moderateReview(reviewId: string, status: TReviewStatus) {
@@ -185,8 +210,5 @@ export class ReviewService {
     });
     return updatedReview;
   }
-
-  // ---------------Dashboard metrics-------------
-  async getReviewStats() {}
 }
 export const reviewService = new ReviewService();

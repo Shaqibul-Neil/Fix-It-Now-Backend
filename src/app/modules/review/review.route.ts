@@ -6,6 +6,8 @@ import { reviewController } from "./review.controller";
 import {
   createReviewSchema,
   listReviewSchema,
+  publicReviewListSchema,
+  reviewIdParamSchema,
   updateReviewSchema,
   updateReviewStatusSchema,
 } from "./review.validation";
@@ -41,11 +43,20 @@ export const reviewRoute: TRouteModule = {
       ),
       handler: reviewController.updateReview,
     },
+    {
+      method: "delete",
+      path: "/reviews/:id",
+      middlewares: roleRoute(
+        [TRole.CUSTOMER, TRole.ADMIN],
+        validateRequest(reviewIdParamSchema),
+      ),
+      handler: reviewController.deleteReview,
+    },
     // ---------------Public----------------
     {
       method: "get",
       path: "/technicians/:id/reviews",
-      middlewares: [validateRequest(listReviewSchema)],
+      middlewares: [validateRequest(publicReviewListSchema)],
       handler: reviewController.getTechnicianReviews,
     },
     // ---------------Admin----------------

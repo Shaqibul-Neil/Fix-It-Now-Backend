@@ -17,7 +17,7 @@ import { CUSTOMER_CANCELABLE } from "./booking.constants";
 import { getPagination } from "../../../utils/utils";
 import { buildBookingFilter, getBookingInclude } from "./booking.utils";
 import { BOOKING_LIST_SELECT } from "./booking.include";
-import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.utils";
 import { bookingListMapper } from "./booking.mapper";
 
 export class BookingService {

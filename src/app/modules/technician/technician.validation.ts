@@ -62,6 +62,24 @@ export const updateTechnicianProfileSchema = z.object({
   }),
 });
 
+export const listTechniciansSchema = z.object({
+  query: z.object({
+    city: z.string().trim().optional(),
+    search: z.string().trim().optional(),
+    minRating: z.coerce.number().min(1).max(5).optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+});
+
+export const technicianIdParamSchema = z.object({
+  params: z.object({ id: z.uuid("Invalid technician id") }),
+});
+
+export type TListTechniciansQuery = z.infer<
+  typeof listTechniciansSchema
+>["query"];
+
 export type TCreateTechnicianProfilePayload = z.infer<
   typeof createTechnicianProfileSchema
 >["body"];

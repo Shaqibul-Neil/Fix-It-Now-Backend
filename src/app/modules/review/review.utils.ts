@@ -31,10 +31,10 @@ export const buildReviewFilter = (
   query: TListReviewQuery,
 ): Prisma.ReviewWhereInput => {
   return {
-    ...baseWhere,
     ...(query.status && {
       status: query.status,
     }),
     ...(query.rating && { rating: query.rating }),
+    ...baseWhere,
   };
 };

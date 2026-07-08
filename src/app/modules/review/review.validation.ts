@@ -14,6 +14,11 @@ export const createReviewSchema = z.object({
   }),
 });
 
+// Shared review id param
+export const reviewIdParamSchema = z.object({
+  params: z.object({ id: z.uuid("Invalid review id") }),
+});
+
 // Customer: update own review
 export const updateReviewSchema = z.object({
   params: z.object({ id: z.uuid("Invalid review id") }),
@@ -29,10 +34,20 @@ export const updateReviewStatusSchema = z.object({
   body: z.object({ status: z.enum(TReviewStatus) }),
 });
 
-//Review Filter
+//Review Filter - Admin + customer's own reviews - status filter allowed
 export const listReviewSchema = z.object({
   query: z.object({
     status: z.enum(TReviewStatus).optional(),
+    rating: z.coerce.number().int().min(1).max(5).optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+  }),
+});
+
+// Public technician/service reviews — NO status field
+export const publicReviewListSchema = z.object({
+  params: z.object({ id: z.uuid("Invalid id") }),
+  query: z.object({
     rating: z.coerce.number().int().min(1).max(5).optional(),
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
@@ -46,3 +61,6 @@ export type TUpdateReviewStatusPayload = z.infer<
 >["body"];
 
 export type TListReviewQuery = z.infer<typeof listReviewSchema>["query"];
+export type TPublicReviewQuery = z.infer<
+  typeof publicReviewListSchema
+>["query"];

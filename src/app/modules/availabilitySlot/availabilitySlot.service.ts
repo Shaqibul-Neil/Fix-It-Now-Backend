@@ -3,7 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import type { TDayOfWeek } from "../../../../generated/prisma/enums";
 import type { TSetAvailabilityPayload } from "./availabilitySlot.validation";
-import { findTechnicianProfileByUserId } from "../technicianProfile/technicianProfile.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.utils";
 
 export class AvailabilityService {
   // Prevent overlapping availability slots within the same day.

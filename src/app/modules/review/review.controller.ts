@@ -9,6 +9,7 @@ import type {
   TUpdateReviewPayload,
   TUpdateReviewStatusPayload,
 } from "./review.validation";
+import type { TRole } from "../../../../generated/prisma/enums";
 
 class ReviewController {
   constructor(private reviewService: ReviewService) {}
@@ -44,6 +45,26 @@ class ReviewController {
       status: httpStatus.OK,
       success: true,
       message: "Review updated successfully",
+      data: result,
+    });
+  });
+
+  //--------------Delete Reviews-------------
+  deleteReview = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const userId = req.user.id;
+    const reviewId = req.params.id as string;
+    const role = req.user.role as TRole;
+    const result = await this.reviewService.deleteReview(
+      userId,
+      role,
+      reviewId,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Review deleted successfully",
       data: result,
     });
   });

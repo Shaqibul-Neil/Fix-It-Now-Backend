@@ -2,17 +2,18 @@ import httpStatus from "http-status";
 import type { TRequest, TResponse } from "../../../types/express.types";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import {
-  technicianProfileService,
-  type TechnicianProfileService,
-} from "./technicianProfile.service";
+  technicianService,
+  type TechnicianService,
+} from "./technician.service";
 import type {
   TCreateTechnicianProfilePayload,
+  TListTechniciansQuery,
   TUpdateTechnicianProfilePayload,
-} from "./technicianProfile.validation";
+} from "./technician.validation";
 import { sendResponse } from "../../../utils/sendResponse";
 
-class TechnicianProfileController {
-  constructor(private technicianService: TechnicianProfileService) {}
+class TechnicianController {
+  constructor(private technicianService: TechnicianService) {}
 
   //----------Create Profile (Onboarding)---------
   createProfile = asyncHandler(async (req: TRequest, res: TResponse) => {
@@ -60,8 +61,35 @@ class TechnicianProfileController {
       data: profile,
     });
   });
+
+  //--------------Public: technician list-------------
+  getAllTechnicians = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const query = req.query as TListTechniciansQuery;
+    const { items, meta } =
+      await this.technicianService.getAllTechnicians(query);
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Technicians fetched successfully",
+      data: items,
+      meta,
+    });
+  });
+
+  //--------------Public: technician profile-------------
+  getTechnicianById = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const result = await this.technicianService.getTechnicianById(
+      req.params.id as string,
+    );
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Technician fetched successfully",
+      data: result,
+    });
+  });
 }
 
-export const technicianProfileController = new TechnicianProfileController(
-  technicianProfileService,
-);
+export const technicianController = new TechnicianController(technicianService);

@@ -3,12 +3,23 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import type {
   TCreateTechnicianProfilePayload,
+  TListTechniciansQuery,
   TUpdateTechnicianProfilePayload,
-} from "./technicianProfile.validation";
-import { findTechnicianProfileByUserId } from "./technicianProfile.utils";
-import { ensureNotEmptyObject } from "../../../utils/utils";
+} from "./technician.validation";
+import {
+  buildTechnicianFilter,
+  findTechnicianProfileByUserId,
+} from "./technician.utils";
+import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
+import { TReviewStatus } from "../../../../generated/prisma/enums";
+import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  TECHNICIAN_DETAILS_SELECT,
+  TECHNICIAN_LIST_SELECT,
+} from "./technician.include";
 
-export class TechnicianProfileService {
+export class TechnicianService {
+  //-------------TECHNICIAN ACTIONS--------------
   //--------------Create / Onboard Profile-------------
   async createProfile(
     userId: string,
@@ -80,6 +91,44 @@ export class TechnicianProfileService {
     }
     return profile;
   }
+
+  //-------------PUBLIC ACTIONS--------------
+  //--------------Public: technician list-------------
+  async getAllTechnicians(query: TListTechniciansQuery) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+
+    const where = buildTechnicianFilter(query);
+
+    const [items, total] = await prisma.$transaction([
+      prisma.technicianProfile.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          averageRating: "desc",
+        },
+        select: TECHNICIAN_LIST_SELECT,
+      }),
+      prisma.technicianProfile.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: { page, limit, total },
+    };
+  }
+
+  //---------Public: technician profile + reviews-------------
+  async getTechnicianById(id: string) {
+    const technician = await prisma.technicianProfile.findUnique({
+      where: { id },
+      select: TECHNICIAN_DETAILS_SELECT,
+    });
+    if (!technician) {
+      throw new AppError("Technician not found.", httpStatus.NOT_FOUND);
+    }
+    return technician;
+  }
 }
 
-export const technicianProfileService = new TechnicianProfileService();
+export const technicianService = new TechnicianService();
