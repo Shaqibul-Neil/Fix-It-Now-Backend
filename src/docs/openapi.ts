@@ -39,7 +39,7 @@ export const openapiSpec: Record<string, any> = {
         "Protected routes require `Authorization: Bearer <access_token>`.",
     ].join("\n"),
   },
-  // Relative server → works on localhost AND on the deployed (Vercel) host.
+  // Relative server  works on localhost AND on the deployed (Vercel) host.
   servers: [{ url: "/api", description: "Same-origin (local + prod)" }],
 
   tags: [
