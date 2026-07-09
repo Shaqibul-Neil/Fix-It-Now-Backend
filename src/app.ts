@@ -36,7 +36,6 @@ app.get("/", (req: TRequest, res: TResponse) => {
     status: httpStatus.OK,
     success: true,
     message: "Welcome to Fix It Now Server",
-    data: { endpoints: mountedPaths },
   });
 });
 

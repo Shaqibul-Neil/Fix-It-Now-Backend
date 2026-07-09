@@ -32,10 +32,12 @@ export const openapiSpec: Record<string, any> = {
   info: {
     title: "FixItNow API",
     version: "1.0.0",
-    description:
-      "Home-services marketplace backend. Customers book technicians for " +
-      "plumbing/electrical/cleaning/painting; technicians manage services, " +
-      "availability and bookings; admins moderate users, categories and reviews.",
+    description: [
+      "OpenAPI documentation for the FixItNow backend.",
+      "",
+      "Authentication endpoints are available under `/api/auth/*`. " +
+        "Protected routes require `Authorization: Bearer <access_token>`.",
+    ].join("\n"),
   },
   // Relative server → works on localhost AND on the deployed (Vercel) host.
   servers: [{ url: "/api", description: "Same-origin (local + prod)" }],
@@ -45,10 +47,22 @@ export const openapiSpec: Record<string, any> = {
     { name: "Technicians", description: "Technician profile + public listing" },
     { name: "Categories", description: "Service categories (public + admin)" },
     { name: "Services", description: "Technician services (public + owner)" },
-    { name: "Availability", description: "Technician weekly availability slots" },
-    { name: "Bookings", description: "Booking lifecycle (customer/tech/admin)" },
-    { name: "Payments", description: "SSLCommerz payments + gateway callbacks" },
-    { name: "Reviews", description: "Reviews (customer/public/admin moderation)" },
+    {
+      name: "Availability",
+      description: "Technician weekly availability slots",
+    },
+    {
+      name: "Bookings",
+      description: "Booking lifecycle (customer/tech/admin)",
+    },
+    {
+      name: "Payments",
+      description: "SSLCommerz payments + gateway callbacks",
+    },
+    {
+      name: "Reviews",
+      description: "Reviews (customer/public/admin moderation)",
+    },
     { name: "Customer", description: "Customer profile" },
     { name: "Admin", description: "User management" },
   ],
