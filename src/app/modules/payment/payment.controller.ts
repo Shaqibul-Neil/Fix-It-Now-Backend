@@ -33,11 +33,12 @@ class PaymentController {
   //--------------Gateway Success (public)-------------
   paymentSuccess = asyncHandler(async (req: TRequest, res: TResponse) => {
     const tranId = req.body.tran_id as string;
-    const valId = req.body.val_id as string;
-    const ok = await this.paymentService.handleSuccess(tranId, valId);
-    return res.redirect(
-      `${config.app_url}/payment/${ok ? "success" : "fail"}?tran_id=${tranId}`,
-    );
+    //const valId = req.body.val_id as string;
+    // const ok = await this.paymentService.handleSuccess(tranId, valId);
+    // return res.redirect(
+    //   `${config.app_url}/payment/${ok ? "success" : "fail"}?tran_id=${tranId}`,
+    // );
+    return res.redirect(`${config.app_url}/payment/success?tran_id=${tranId}`);
   });
 
   //--------------Gateway Fail (public)-------------
@@ -52,6 +53,14 @@ class PaymentController {
     const tranId = req.body.tran_id as string;
     await this.paymentService.handleFailure(tranId);
     return res.redirect(`${config.app_url}/payment/cancel?tran_id=${tranId}`);
+  });
+
+  //--------------Gateway IPN (public, server-to-server)-------------
+  paymentIPN = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const payload = req.body as Record<string, string>;
+    await this.paymentService.handleIPN(payload);
+    // SSLCommerz only wants a 200 acknowledgement, no body/redirect
+    res.sendStatus(httpStatus.OK);
   });
 
   //--------------Customer payment history-------------

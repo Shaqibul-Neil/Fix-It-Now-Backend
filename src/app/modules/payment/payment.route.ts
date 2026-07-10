@@ -68,5 +68,10 @@ export const paymentRoute: TRouteModule = {
       path: "/payments/cancel",
       handler: paymentController.paymentCancel,
     },
+    {
+      method: "post",
+      path: "/payments/ipn",
+      handler: paymentController.paymentIPN,
+    },
   ],
 };

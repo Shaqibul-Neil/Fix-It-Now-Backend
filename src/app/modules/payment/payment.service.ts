@@ -12,6 +12,7 @@ import {
   buildPaymentFilter,
   initSSLCommerzPayment,
   validateSSLCommerzPayment,
+  verifySSLCommerzIPN,
 } from "./payment.utils";
 import config from "../../../config";
 import { TRole, type Prisma } from "../../../../generated/prisma/client";
@@ -47,6 +48,73 @@ export class PaymentService {
       items: result,
       meta: { page, limit, total },
     };
+  }
+
+  //
+  private async finalizePayment(
+    transactionId: string,
+    valId: string,
+  ): Promise<boolean> {
+    //get the payment
+    const payment = await prisma.payment.findUnique({
+      where: { transactionId },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        bookingId: true,
+        booking: {
+          select: {
+            customer: { select: { userId: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) return false;
+
+    //already processed - Idempotent
+    if (payment.status === TPaymentStatus.SUCCESS) return true;
+
+    // verify a completed transaction
+    const validation = await validateSSLCommerzPayment(valId);
+    const isValid =
+      validation.status === "VALID" || validation.status === "VALIDATED";
+    const amountMatches = Number(validation.amount) === Number(payment.amount);
+
+    if (!isValid || !amountMatches) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: TPaymentStatus.FAILED },
+      });
+      return false;
+    }
+
+    // mark paid
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: TPaymentStatus.SUCCESS,
+          valId,
+          method: validation.card_type ?? null,
+          paidAt: new Date(),
+        },
+      }),
+      prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: {
+          status: TBookingStatus.PAID,
+          statusHistory: {
+            create: {
+              status: TBookingStatus.PAID,
+              changedById: payment.booking.customer.userId,
+            },
+          },
+        },
+      }),
+    ]);
+    return true;
   }
 
   //-------------CUSTOMER ACTIONS----------
@@ -135,6 +203,7 @@ export class PaymentService {
       successUrl: `${config.url}/api/payments/success`,
       failUrl: `${config.url}/api/payments/fail`,
       cancelUrl: `${config.url}/api/payments/cancel`,
+      ipnUrl: `${config.url}/api/payments/ipn`,
       customerName:
         `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Customer",
       customerEmail: user?.email ?? "customer@fixitnow.com",
@@ -147,68 +216,42 @@ export class PaymentService {
   }
 
   //-------------GATEWAY CALLBACKS----------
-  //---------Success: verify + mark paid----------
+  //---------Success redirect (browser): verify + mark paid----------
   async handleSuccess(transactionId: string, valId: string): Promise<boolean> {
-    //get the payment
-    const payment = await prisma.payment.findUnique({
-      where: { transactionId },
-      select: {
-        id: true,
-        amount: true,
-        status: true,
-        bookingId: true,
-        booking: {
-          select: {
-            customer: { select: { userId: true } },
-          },
-        },
-      },
-    });
+    return this.finalizePayment(transactionId, valId);
+  }
 
-    if (!payment) return false;
+  //---------IPN (server-to-server): source of truth----------
+  async handleIPN(payload: Record<string, string>): Promise<void> {
+    //authenticate : reject anything not actually from ssl
+    if (!verifySSLCommerzIPN(payload)) {
+      throw new AppError("Invalid IPN signature.", httpStatus.FORBIDDEN);
+    }
+    const tranId = payload.tran_id;
+    const valId = payload.val_id;
+    const status = payload.status;
 
-    //already processed - Idempotent
-    if (payment.status === TPaymentStatus.SUCCESS) return true;
-
-    // verify a completed transaction
-    const validation = await validateSSLCommerzPayment(valId);
-    const isValid =
-      validation.status === "VALID" || validation.status === "VALIDATED";
-    const amountMatches = Number(validation.amount) === Number(payment.amount);
-
-    if (!isValid || !amountMatches) {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: TPaymentStatus.FAILED },
-      });
-      return false;
+    if (!tranId) {
+      throw new AppError(
+        "Missing transaction id in IPN.",
+        httpStatus.BAD_REQUEST,
+      );
     }
 
-    // mark paid
-    await prisma.$transaction([
-      prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: TPaymentStatus.SUCCESS,
-          valId,
-          method: validation.card_type ?? null,
-          paidAt: new Date(),
-        },
-      }),
-      prisma.booking.update({
-        where: { id: payment.bookingId },
-        data: {
-          status: TBookingStatus.PAID,
-          statusHistory: {
-            create: {
-              status: TBookingStatus.PAID,
-              changedById: payment.booking.customer.userId,
-            },
-          },
-        },
-      }),
-    ]);
-    return true;
+    if (status === "VALID") {
+      //checking valId here because it only exists if the payment is succeeded
+      if (!valId) {
+        throw new AppError(
+          "Missing validation id in IPN.",
+          httpStatus.BAD_REQUEST,
+        );
+      }
+
+      await this.finalizePayment(tranId, valId);
+      return;
+    }
+    // FAILED / CANCELLED / EXPIRED / UNATTEMPTED
+    await this.handleFailure(tranId);
   }
 
   //-----------Fail / Cancel: mark failed-----------

@@ -1,5 +1,6 @@
 import z from "zod";
 import { TPaymentStatus } from "../../../../generated/prisma/enums";
+import { PERIODS } from "../../../types/types";
 
 //Create payment session
 export const createPaymentSchema = z.object({
@@ -12,7 +13,10 @@ export const createPaymentSchema = z.object({
 export const listPaymentsSchema = z.object({
   query: z.object({
     status: z.enum(TPaymentStatus).optional(),
-    period: z.number().optional(),
+    period: z
+      .enum(PERIODS)
+      .transform((value) => Number(value))
+      .optional(),
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
   }),

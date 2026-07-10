@@ -2,6 +2,8 @@ import httpStatus from "http-status";
 import slugify from "slugify";
 import { AppError } from "./appError";
 
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
 //Generates a URL-friendly slug from a string.
 export const generateSlug = (value: string): string => {
   return slugify(value, {
@@ -30,3 +32,7 @@ export const getPagination = (page = 1, limit = 10) => {
     skip,
   };
 };
+
+//Get Date from the time period
+export const getDateFromPeriod = (days: number) =>
+  new Date(Date.now() - days * MILLISECONDS_PER_DAY);
