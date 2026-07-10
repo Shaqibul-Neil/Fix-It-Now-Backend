@@ -33,12 +33,11 @@ class PaymentController {
   //--------------Gateway Success (public)-------------
   paymentSuccess = asyncHandler(async (req: TRequest, res: TResponse) => {
     const tranId = req.body.tran_id as string;
-    //const valId = req.body.val_id as string;
-    // const ok = await this.paymentService.handleSuccess(tranId, valId);
-    // return res.redirect(
-    //   `${config.app_url}/payment/${ok ? "success" : "fail"}?tran_id=${tranId}`,
-    // );
-    return res.redirect(`${config.app_url}/payment/success?tran_id=${tranId}`);
+    const valId = req.body.val_id as string;
+    const ok = await this.paymentService.handleSuccess(tranId, valId);
+    return res.redirect(
+      `${config.app_url}/payment/${ok ? "success" : "fail"}?tran_id=${tranId}`,
+    );
   });
 
   //--------------Gateway Fail (public)-------------

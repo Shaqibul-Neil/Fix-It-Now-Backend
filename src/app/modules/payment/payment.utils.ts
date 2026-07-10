@@ -62,6 +62,8 @@ export const initSSLCommerzPayment = async (
     product_profile: "general",
     num_of_item: "1",
   });
+  // console.log("--- ipn_url being sent:", input.ipnUrl);
+  // console.log("--- success_url being sent:", input.successUrl);
 
   const { data } = await axios.post<TSSLInitResponse>(
     SSL_CONFIG.initUrl,
@@ -100,40 +102,40 @@ export const validateSSLCommerzPayment = async (valId: string) => {
 
 // Verify IPN
 export const verifySSLCommerzIPN = (payload: TIpnPayload): boolean => {
-  console.log("--------payload---", payload);
+  //console.log("--------payload---", payload);
   const { verify_sign, verify_key } = payload;
   if (!verify_sign || !verify_key) return false;
 
-  console.log("--------verify_sign---", verify_sign);
-  console.log("--------verify_key---", verify_key);
+  //console.log("--------verify_sign---", verify_sign);
+  //console.log("--------verify_key---", verify_key);
 
   const signedKeys = verify_key.split(",");
   const data: Record<string, string> = {};
   for (const key of signedKeys) {
     if (payload[key] !== undefined) {
       data[key] = payload[key];
-      console.log(`After adding ${key}:`, data);
+      //console.log(`After adding ${key}:`, data);
     }
   }
   // MD5 hash generate + store password as input = MD5 hash hexadecimal string
-  console.log("------data after loop------", data);
+  //console.log("------data after loop------", data);
   data.store_passwd = crypto
     .createHash("md5")
     .update(config.ssl.store_passwd)
     .digest("hex");
-  console.log("------data after hash------", data);
+  //console.log("------data after hash------", data);
 
   //making a query string from object
   const hashString = Object.keys(data)
     .sort()
     .map((key) => `${key}=${data[key]}`)
     .join("&");
-  console.log("------hashString------", hashString);
+  //console.log("------hashString------", hashString);
 
   //converting the query string to md5
   const expected = crypto.createHash("md5").update(hashString).digest("hex");
 
-  console.log("------expected------", expected);
+  //console.log("------expected------", expected);
   return expected === verify_sign;
 };
 
