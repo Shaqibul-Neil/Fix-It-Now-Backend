@@ -8,7 +8,7 @@ import type {
   TUpdateUserStatusPayload,
 } from "./user.validation";
 import { buildUserFilter } from "./user.utils";
-import { USER_SELECT } from "./user.include";
+import { USER_SELECT, USER_STATUS_SELECT } from "./user.include";
 
 export class UserService {
   //-------------ADMIN ACTIONS----------
@@ -48,7 +48,7 @@ export class UserService {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, status: true },
+      select: USER_STATUS_SELECT,
     });
 
     if (!user) {

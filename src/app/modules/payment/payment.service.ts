@@ -17,9 +17,20 @@ import {
 import config from "../../../config";
 import { TRole, type Prisma } from "../../../../generated/prisma/client";
 import type { TListPaymentsQuery } from "./payment.validation";
-import { getPagination } from "../../../utils/utils";
-import { PAYMENT_DETAILS_SELECT, PAYMENT_LIST_SELECT } from "./payment.include";
+import { createFullName, getPagination } from "../../../utils/utils";
+import {
+  PAYMENT_CREATE_BOOKING_SELECT,
+  PAYMENT_DETAILS_SELECT,
+  PAYMENT_FAILURE_SELECT,
+  PAYMENT_FINALIZE_SELECT,
+  PAYMENT_GATEWAY_CUSTOMER_SELECT,
+  PAYMENT_LIST_SELECT,
+} from "./payment.include";
 import { paymentDetailsMapper, paymentListMapper } from "./payment.mapper";
+import {
+  notifyPaymentFailed,
+  notifyPaymentSuccess,
+} from "../notification/notification.events";
 
 export class PaymentService {
   //Get Payment List
@@ -50,7 +61,7 @@ export class PaymentService {
     };
   }
 
-  //
+  //Finalize payment after gateway verification
   private async finalizePayment(
     transactionId: string,
     valId: string,
@@ -58,17 +69,7 @@ export class PaymentService {
     //get the payment
     const payment = await prisma.payment.findUnique({
       where: { transactionId },
-      select: {
-        id: true,
-        amount: true,
-        status: true,
-        bookingId: true,
-        booking: {
-          select: {
-            customer: { select: { userId: true } },
-          },
-        },
-      },
+      select: PAYMENT_FINALIZE_SELECT,
     });
 
     if (!payment) return false;
@@ -114,6 +115,19 @@ export class PaymentService {
         },
       }),
     ]);
+
+    const customerName = createFullName(
+      payment.booking.customer.users.firstName,
+      payment.booking.customer.users.lastName,
+    );
+    //sending notifications
+    await notifyPaymentSuccess(
+      payment.bookingId,
+      String(payment.amount),
+      customerName,
+      payment.booking.customer.userId,
+      payment.booking.technician.userId,
+    );
     return true;
   }
 
@@ -127,16 +141,7 @@ export class PaymentService {
       where: {
         id: bookingId,
       },
-      select: {
-        id: true,
-        customerId: true,
-        status: true,
-        amount: true,
-        address: true,
-        service: {
-          select: { title: true },
-        },
-      },
+      select: PAYMENT_CREATE_BOOKING_SELECT,
     });
     if (!booking) {
       throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
@@ -169,7 +174,7 @@ export class PaymentService {
     // customer contact info required by the gateway
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { firstName: true, lastName: true, email: true },
+      select: PAYMENT_GATEWAY_CUSTOMER_SELECT,
     });
 
     //generating transaction id
@@ -258,7 +263,7 @@ export class PaymentService {
   async handleFailure(transactionId: string): Promise<void> {
     const payment = await prisma.payment.findUnique({
       where: { transactionId },
-      select: { id: true, status: true },
+      select: PAYMENT_FAILURE_SELECT,
     });
     if (!payment || payment.status === TPaymentStatus.SUCCESS) return;
 
@@ -266,6 +271,18 @@ export class PaymentService {
       where: { id: payment.id },
       data: { status: TPaymentStatus.FAILED },
     });
+
+    const customerName = createFullName(
+      payment.booking.customer.users.firstName,
+      payment.booking.customer.users.lastName,
+    );
+
+    //send notifications
+    await notifyPaymentFailed(
+      payment.bookingId,
+      payment.booking.customer.userId,
+      customerName,
+    );
   }
 
   //----------Customer payment history-----------

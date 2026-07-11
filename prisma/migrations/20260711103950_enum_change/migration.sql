@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TNotificationType" ADD VALUE 'TECHNICIAN_PROFILE_UPDATED';

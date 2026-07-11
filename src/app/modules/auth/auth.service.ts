@@ -9,6 +9,9 @@ import config from "../../../config";
 import { TRole, TUserStatus } from "../../../../generated/prisma/enums";
 import { AppError } from "../../../utils/appError";
 import { jwtToken } from "../../../utils/jwt";
+import { createFullName } from "../../../utils/utils";
+import { notifyUserRegistered } from "../notification/notification.events";
+import { AUTH_CURRENT_USER_SELECT, AUTH_REFRESH_SELECT } from "./auth.include";
 
 export class AuthService {
   //--------------Register-------------
@@ -48,6 +51,12 @@ export class AuthService {
           data: { userId: createdUser.id },
         });
       }
+
+      const fullName = createFullName(user.firstName, user.lastName);
+
+      //sending notification to admin
+      await notifyUserRegistered(user.id, fullName, user.role);
+
       return createdUser;
     });
     const { lastLoginAt, createdAt, updatedAt, ...authUser } = user;
@@ -109,12 +118,7 @@ export class AuthService {
     const payload = jwtToken.verifyToken(refreshToken, "refresh");
     const user = await prisma.user.findFirstOrThrow({
       where: { id: payload.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        status: true,
-      },
+      select: AUTH_REFRESH_SELECT,
     });
 
     //check user status
@@ -134,14 +138,7 @@ export class AuthService {
   async currentUser(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        status: true,
-      },
+      select: AUTH_CURRENT_USER_SELECT,
     });
     return user;
   }

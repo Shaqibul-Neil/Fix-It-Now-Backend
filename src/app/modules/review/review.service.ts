@@ -14,9 +14,18 @@ import {
   TRole,
 } from "../../../../generated/prisma/enums";
 import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
-import { REVIEW_SELECT } from "./review.include";
+import {
+  REVIEW_BOOKING_SELECT,
+  REVIEW_MODERATION_SELECT,
+  REVIEW_OWNER_SELECT,
+  REVIEW_SELECT,
+} from "./review.include";
 import { buildReviewFilter, computeTechnicianRating } from "./review.utils";
 import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  notifyReviewPublished,
+  notifyReviewSubmitted,
+} from "../notification/notification.events";
 
 export class ReviewService {
   // Shared review list query
@@ -52,14 +61,7 @@ export class ReviewService {
     //get the booking and check
     const booking = await prisma.booking.findUnique({
       where: { id: payload.bookingId },
-      select: {
-        id: true,
-        customerId: true,
-        technicianId: true,
-        serviceId: true,
-        status: true,
-        review: { select: { id: true } },
-      },
+      select: REVIEW_BOOKING_SELECT,
     });
     if (!booking) {
       throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
@@ -94,6 +96,9 @@ export class ReviewService {
       },
       select: REVIEW_SELECT,
     });
+
+    //sending notification (review starts PENDING → admin approval)
+    await notifyReviewSubmitted(review.id);
     return review;
   }
 
@@ -113,7 +118,7 @@ export class ReviewService {
       //get the review and check
       const review = await tx.review.findUnique({
         where: { id: reviewId },
-        select: { id: true, customerId: true, technicianId: true },
+        select: REVIEW_OWNER_SELECT,
       });
 
       if (!review) {
@@ -143,7 +148,7 @@ export class ReviewService {
   async deleteReview(userId: string, role: TRole, reviewId: string) {
     const review = await prisma.review.findUnique({
       where: { id: reviewId },
-      select: { id: true, customerId: true, technicianId: true },
+      select: REVIEW_OWNER_SELECT,
     });
     if (!review) {
       throw new AppError("Review not found.", httpStatus.NOT_FOUND);
@@ -193,7 +198,7 @@ export class ReviewService {
     //get the review
     const review = await prisma.review.findUnique({
       where: { id: reviewId },
-      select: { id: true, technicianId: true },
+      select: REVIEW_MODERATION_SELECT,
     });
     if (!review) {
       throw new AppError("Review not found.", httpStatus.NOT_FOUND);
@@ -208,6 +213,16 @@ export class ReviewService {
       await computeTechnicianRating(tx, review.technicianId);
       return result;
     });
+
+    //sending notification only when it goes public
+    if (status === TReviewStatus.PUBLISHED) {
+      await notifyReviewPublished(
+        review.id,
+        review.customer.userId,
+        review.technician.userId,
+      );
+    }
+
     return updatedReview;
   }
 }

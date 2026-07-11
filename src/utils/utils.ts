@@ -36,3 +36,7 @@ export const getPagination = (page = 1, limit = 10) => {
 //Get Date from the time period
 export const getDateFromPeriod = (days: number) =>
   new Date(Date.now() - days * MILLISECONDS_PER_DAY);
+
+//creating full name from first and last
+export const createFullName = (firstName: string, lastName: string) =>
+  `${firstName} ${lastName}`;

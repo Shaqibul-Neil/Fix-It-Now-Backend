@@ -14,11 +14,28 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { getDayOfWeek, getTimeString } from "../../../utils/date";
 import { CUSTOMER_CANCELABLE } from "./booking.constants";
-import { getPagination } from "../../../utils/utils";
+import { createFullName, getPagination } from "../../../utils/utils";
 import { buildBookingFilter, getBookingInclude } from "./booking.utils";
-import { BOOKING_LIST_SELECT } from "./booking.include";
+import {
+  BOOKING_AVAILABILITY_SLOT_SELECT,
+  BOOKING_CANCEL_INCLUDE,
+  BOOKING_CANCEL_SELECT,
+  BOOKING_CREATE_SERVICE_SELECT,
+  BOOKING_CREATED_INCLUDE,
+  BOOKING_LIST_SELECT,
+  BOOKING_STATUS_RESULT_SELECT,
+  BOOKING_STATUS_UPDATE_SELECT,
+} from "./booking.include";
 import { findTechnicianProfileByUserId } from "../technician/technician.utils";
 import { bookingListMapper } from "./booking.mapper";
+import {
+  notifyBookingAccepted,
+  notifyBookingCancelled,
+  notifyBookingCompleted,
+  notifyBookingCreated,
+  notifyBookingDeclined,
+  notifyBookingInProgress,
+} from "../notification/notification.events";
 
 export class BookingService {
   //Check if the technician is available
@@ -29,10 +46,12 @@ export class BookingService {
     // Get all active availability slots of this technician
     const availabilitySlots = await prisma.availabilitySlot.findMany({
       where: { technicianId, isActive: true },
-      select: { dayOfWeek: true, startTime: true, endTime: true },
+      select: BOOKING_AVAILABILITY_SLOT_SELECT,
     });
+
     // If technician has not configured availability
     if (availabilitySlots.length === 0) return;
+
     // Convert booking date into day & time
     const bookingDay = getDayOfWeek(scheduledAt);
     const bookingTime = getTimeString(scheduledAt);
@@ -95,12 +114,7 @@ export class BookingService {
     //check for service
     const service = await prisma.service.findUnique({
       where: { id: payload.serviceId },
-      select: {
-        id: true,
-        isActive: true,
-        price: true,
-        technicianId: true,
-      },
+      select: BOOKING_CREATE_SERVICE_SELECT,
     });
     if (!service) {
       throw new AppError("Service not found.", httpStatus.NOT_FOUND);
@@ -140,7 +154,7 @@ export class BookingService {
     }
 
     //create booking
-    return prisma.booking.create({
+    const newBooking = await prisma.booking.create({
       data: {
         customerId: customer.id,
         technicianId: service.technicianId,
@@ -158,12 +172,22 @@ export class BookingService {
           },
         },
       },
-      include: {
-        service: {
-          select: { id: true, title: true, price: true },
-        },
-      },
+      include: BOOKING_CREATED_INCLUDE,
     });
+
+    const customerName = createFullName(
+      newBooking.customer.users.firstName,
+      newBooking.customer.users.lastName,
+    );
+
+    //sending notifications
+    await notifyBookingCreated(
+      newBooking.id,
+      service.technician.userId,
+      customerName,
+    );
+
+    return newBooking;
   }
 
   //--------------Cancel Booking-------------
@@ -174,7 +198,7 @@ export class BookingService {
     //get the booking and check conditions
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      select: { id: true, customerId: true, status: true },
+      select: BOOKING_CANCEL_SELECT,
     });
     if (!booking) {
       throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
@@ -192,7 +216,7 @@ export class BookingService {
       );
     }
 
-    return prisma.booking.update({
+    const cancelledBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: TBookingStatus.CANCELLED,
@@ -204,8 +228,22 @@ export class BookingService {
           },
         },
       },
-      include: { service: { select: { id: true, title: true } } },
+      include: BOOKING_CANCEL_INCLUDE,
     });
+
+    const customerName = createFullName(
+      booking.customer.users.firstName,
+      booking.customer.users.lastName,
+    );
+
+    //sending notifications
+    await notifyBookingCancelled(
+      bookingId,
+      booking.technician.userId,
+      customerName,
+    );
+
+    return cancelledBooking;
   }
 
   //-----------Get Customer's Bookings List-----------
@@ -273,7 +311,7 @@ export class BookingService {
     //get the booking and check conditions
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      select: { id: true, technicianId: true, status: true },
+      select: BOOKING_STATUS_UPDATE_SELECT,
     });
     if (!booking) {
       throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
@@ -324,7 +362,8 @@ export class BookingService {
     if (payload.status === TBookingStatus.COMPLETED) {
       timestamps.completedAt = new Date();
     }
-    return prisma.booking.update({
+
+    const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: payload.status,
@@ -337,13 +376,37 @@ export class BookingService {
           },
         },
       },
-      select: {
-        id: true,
-        status: true,
-        acceptedAt: true,
-        completedAt: true,
-      },
+      select: BOOKING_STATUS_RESULT_SELECT,
     });
+
+    const technicianName = createFullName(
+      booking.technician.users.firstName,
+      booking.technician.users.lastName,
+    );
+    const customerUserId = booking.customer.userId;
+    const bookingAmount = String(booking.amount);
+
+    //sending notifications based on status
+    switch (payload.status) {
+      case TBookingStatus.ACCEPTED:
+        await notifyBookingAccepted(
+          bookingId,
+          customerUserId,
+          technicianName,
+          bookingAmount,
+        );
+        break;
+      case TBookingStatus.DECLINED:
+        await notifyBookingDeclined(bookingId, customerUserId, technicianName);
+        break;
+      case TBookingStatus.IN_PROGRESS:
+        await notifyBookingInProgress(bookingId, customerUserId);
+        break;
+      case TBookingStatus.COMPLETED:
+        await notifyBookingCompleted(bookingId, customerUserId);
+        break;
+    }
+    return updatedBooking;
   }
 
   //-------------ADMIN ACTIONS----------

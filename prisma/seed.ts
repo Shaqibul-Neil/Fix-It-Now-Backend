@@ -12,6 +12,7 @@ const PASSWORD = "Password123!"; // same login password for EVERY seeded user (i
 
 // Wipe everything FK-safe (children first) so the seed is fully idempotent.
 async function resetDatabase() {
+  await prisma.notification.deleteMany();
   await prisma.bookingStatusHistory.deleteMany();
   await prisma.review.deleteMany();
   await prisma.payment.deleteMany();

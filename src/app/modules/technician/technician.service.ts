@@ -10,13 +10,21 @@ import {
   buildTechnicianFilter,
   findTechnicianProfileByUserId,
 } from "./technician.utils";
-import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
-import { TReviewStatus } from "../../../../generated/prisma/enums";
-import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  createFullName,
+  ensureNotEmptyObject,
+  getPagination,
+} from "../../../utils/utils";
 import {
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
+  TECHNICIAN_MY_PROFILE_INCLUDE,
+  TECHNICIAN_PROFILE_WITH_USER_INCLUDE,
 } from "./technician.include";
+import {
+  notifyTechnicianOnboarded,
+  notifyTechnicianProfileUpdated,
+} from "../notification/notification.events";
 
 export class TechnicianService {
   //-------------TECHNICIAN ACTIONS--------------
@@ -40,7 +48,16 @@ export class TechnicianService {
         area: location.area,
         isProfileComplete: true,
       },
+      include: TECHNICIAN_PROFILE_WITH_USER_INCLUDE,
     });
+
+    const technicianName = createFullName(
+      profile.users.firstName,
+      profile.users.lastName,
+    );
+
+    //sending notification to admin
+    await notifyTechnicianOnboarded(userId, technicianName);
     return profile;
   }
 
@@ -64,7 +81,17 @@ export class TechnicianService {
     const profile = await prisma.technicianProfile.update({
       where: { userId },
       data,
+      include: TECHNICIAN_PROFILE_WITH_USER_INCLUDE,
     });
+
+    const technicianName = createFullName(
+      profile.users.firstName,
+      profile.users.lastName,
+    );
+
+    //send admin notifications
+    await notifyTechnicianProfileUpdated(userId, technicianName);
+
     return profile;
   }
 
@@ -72,16 +99,7 @@ export class TechnicianService {
   async getMyProfile(userId: string) {
     const profile = await prisma.technicianProfile.findUnique({
       where: { userId },
-      include: {
-        users: {
-          select: {
-            firstName: true,
-            lastName: true,
-            lastLoginAt: true,
-            email: true,
-          },
-        },
-      },
+      include: TECHNICIAN_MY_PROFILE_INCLUDE,
     });
     if (!profile) {
       throw new AppError(

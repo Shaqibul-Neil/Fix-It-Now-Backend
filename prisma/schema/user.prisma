@@ -13,6 +13,7 @@ model User {
   //Relations
   technicianProfile TechnicianProfile?
   customerProfile   CustomerProfile?
+  notifications     Notification[]
 
   @@map("users")
 }

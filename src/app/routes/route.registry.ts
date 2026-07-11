@@ -3,6 +3,7 @@ import { availabilitySlotRoute } from "../modules/availabilitySlot/availabilityS
 import { bookingRoute } from "../modules/booking/booking.route";
 import { categoryRoute } from "../modules/category/category.route";
 import { customerRoute } from "../modules/customer/customer.route";
+import { notificationRoute } from "../modules/notification/notification.route";
 import { paymentRoute } from "../modules/payment/payment.route";
 import { reviewRoute } from "../modules/review/review.route";
 import { serviceRoute } from "../modules/service/service.route";
@@ -21,4 +22,5 @@ export const routeRegistry: TRouteModule[] = [
   reviewRoute,
   customerRoute,
   userRoute,
+  notificationRoute,
 ];

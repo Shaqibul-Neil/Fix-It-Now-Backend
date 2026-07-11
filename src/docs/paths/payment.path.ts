@@ -91,4 +91,13 @@ export const paymentPaths = {
       responses: { "200": { description: "Payment cancelled." } },
     },
   },
+  "/payments/ipn": {
+    post: {
+      tags: ["Payments"],
+      summary: "Gateway IPN: server-to-server payment notification (PUBLIC)",
+      description:
+        "Instant Payment Notification from SSLCommerz. Server re-validates the payload and reconciles payment status. Fired server-to-server, not for manual use. Returns a bare 200 acknowledgement (no body).",
+      responses: { "200": { description: "IPN acknowledged." } },
+    },
+  },
 };

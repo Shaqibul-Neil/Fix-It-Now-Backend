@@ -4,6 +4,12 @@ import { AppError } from "../../../utils/appError";
 import type { TDayOfWeek } from "../../../../generated/prisma/enums";
 import type { TSetAvailabilityPayload } from "./availabilitySlot.validation";
 import { findTechnicianProfileByUserId } from "../technician/technician.utils";
+import { createFullName } from "../../../utils/utils";
+import { notifyAvailabilityUpdated } from "../notification/notification.events";
+import {
+  AVAILABILITY_SLOT_SELECT,
+  AVAILABILITY_TECHNICIAN_SELECT,
+} from "./availabilitySlot.include";
 
 export class AvailabilityService {
   // Prevent overlapping availability slots within the same day.
@@ -40,13 +46,7 @@ export class AvailabilityService {
     const slots = await prisma.availabilitySlot.findMany({
       where: { technicianId },
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-      select: {
-        id: true,
-        dayOfWeek: true,
-        startTime: true,
-        endTime: true,
-        isActive: true,
-      },
+      select: AVAILABILITY_SLOT_SELECT,
     });
     return slots.map((slot) => ({
       id: slot.id,
@@ -57,7 +57,18 @@ export class AvailabilityService {
 
   //--------------Set / Replace availability
   async setAvailability(userId: string, payload: TSetAvailabilityPayload) {
-    const technician = await findTechnicianProfileByUserId(userId);
+    //get technician
+    const technician = await prisma.technicianProfile.findUnique({
+      where: { userId },
+      select: AVAILABILITY_TECHNICIAN_SELECT,
+    });
+    if (!technician) {
+      throw new AppError(
+        "Profile not found. Please complete your onboarding first.",
+        httpStatus.NOT_FOUND,
+      );
+    }
+
     //check overlapping
     this.noSlotOverlap(payload.slots);
     const data = payload.slots.map((slot) => ({
@@ -73,6 +84,14 @@ export class AvailabilityService {
       }),
       prisma.availabilitySlot.createMany({ data }),
     ]);
+
+    const technicianName = createFullName(
+      technician.users.firstName,
+      technician.users.lastName,
+    );
+
+    //sending notification to admin
+    await notifyAvailabilityUpdated(userId, technicianName);
 
     return this.getAvailabilityByTechnicianId(technician.id);
   }

@@ -15,6 +15,7 @@ import { paymentSchemas } from "./schemas/payment.schema";
 import { reviewSchemas } from "./schemas/review.schema";
 import { customerSchemas } from "./schemas/customer.schema";
 import { adminSchemas } from "./schemas/admin.schema";
+import { notificationSchemas } from "./schemas/notification.schema";
 
 import { authPaths } from "./paths/auth.path";
 import { technicianPaths } from "./paths/technician.path";
@@ -26,6 +27,7 @@ import { paymentPaths } from "./paths/payment.path";
 import { reviewPaths } from "./paths/review.path";
 import { customerPaths } from "./paths/customer.path";
 import { adminPaths } from "./paths/admin.path";
+import { notificationPaths } from "./paths/notification.path";
 
 export const openapiSpec: Record<string, any> = {
   openapi: "3.0.3",
@@ -65,6 +67,10 @@ export const openapiSpec: Record<string, any> = {
     },
     { name: "Customer", description: "Customer profile" },
     { name: "Admin", description: "User management" },
+    {
+      name: "Notifications",
+      description: "In-app notifications (list, unread, mark read)",
+    },
   ],
 
   components: {
@@ -82,6 +88,7 @@ export const openapiSpec: Record<string, any> = {
       ...reviewSchemas,
       ...customerSchemas,
       ...adminSchemas,
+      ...notificationSchemas,
     },
   },
 
@@ -96,5 +103,6 @@ export const openapiSpec: Record<string, any> = {
     ...reviewPaths,
     ...customerPaths,
     ...adminPaths,
+    ...notificationPaths,
   },
 };

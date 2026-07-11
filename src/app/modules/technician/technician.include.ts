@@ -64,3 +64,25 @@ export const TECHNICIAN_DETAILS_SELECT = {
     },
   },
 } as const satisfies Prisma.TechnicianProfileSelect;
+
+// profile + owner name — for create/update responses
+export const TECHNICIAN_PROFILE_WITH_USER_INCLUDE = {
+  users: {
+    select: {
+      firstName: true,
+      lastName: true,
+    },
+  },
+} as const satisfies Prisma.TechnicianProfileInclude;
+
+// technician's own profile view
+export const TECHNICIAN_MY_PROFILE_INCLUDE = {
+  users: {
+    select: {
+      firstName: true,
+      lastName: true,
+      lastLoginAt: true,
+      email: true,
+    },
+  },
+} as const satisfies Prisma.TechnicianProfileInclude;
