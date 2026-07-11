@@ -52,14 +52,16 @@ export class AuthService {
         });
       }
 
-      const fullName = createFullName(user.firstName, user.lastName);
-
-      //sending notification to admin
-      await notifyUserRegistered(user.id, fullName, user.role);
-
       return createdUser;
     });
+
     const { lastLoginAt, createdAt, updatedAt, ...authUser } = user;
+
+    const fullName = createFullName(user.firstName, user.lastName);
+
+    //sending notification to admin
+    await notifyUserRegistered(user.id, fullName, user.role);
+
     return authUser;
   }
 
