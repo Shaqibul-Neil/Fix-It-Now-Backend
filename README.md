@@ -34,6 +34,7 @@ Customers browse services and book qualified technicians. Technicians publish se
 - [Authentication & Authorization](#-authentication--authorization)
 - [Response Format](#-response-format)
 - [API Reference](#-api-reference)
+- [Notification Flow](#-notification-flow)
 - [Deployment](#-deployment-vercel)
 - [License](#-license)
 
@@ -79,10 +80,12 @@ FixItNow is a multi-role home-services marketplace backend. It exposes a version
 - List & moderate all users (ban / activate)
 - View all bookings and all payments across the platform
 - Moderate reviews (publish / hide / reject)
+- Receive notifications for platform activity (registrations, onboarding, bookings, payments, reviews, service changes)
 
 ### ⚙️ Platform
 
 - Layered, modular architecture (route → controller → service)
+- In-app notifications across the booking, payment, review & technician lifecycles (see [Notification Flow](#-notification-flow))
 - Centralized error handling (Zod, Prisma, custom `AppError`)
 - Request validation on every mutating endpoint
 - Role-based access control middleware
@@ -152,7 +155,8 @@ fix-it-now-backend/
 │   │   ├── booking.prisma
 │   │   ├── bookingStatusHistory.prisma
 │   │   ├── payment.prisma
-│   │   └── review.prisma
+│   │   ├── review.prisma
+│   │   └── notification.prisma
 │   └── seed.ts                  # Development seed data
 ├── src/
 │   ├── app.ts                   # Express app (middleware + routes)
@@ -174,26 +178,28 @@ fix-it-now-backend/
 │           ├── availabilitySlot/
 │           ├── booking/
 │           ├── payment/
-│           └── review/
+│           ├── review/
+│           └── notification/
 ├── api/index.ts                 # Serverless entry (re-exports app)
 ├── vercel.json
 ├── tsconfig.json
 └── package.json
 ```
 
-Each module typically contains: `*.route.ts`, `*.controller.ts`, `*.service.ts`, `*.validation.ts`, plus optional `*.include.ts`, `*.mapper.ts`, `*.utils.ts`, `*.constants.ts`.
+Each module typically contains: `*.route.ts`, `*.controller.ts`, `*.service.ts`, `*.validation.ts`, plus optional `*.include.ts`, `*.mapper.ts`, `*.utils.ts`, `*.constants.ts`. The `notification` module also exposes `*.events.ts` (per-event builders) and `*.emit.ts` (bulk/single insert helpers) that other modules call to fire notifications.
 
 ---
 
 ## 🗄️ Database Schema
 
-**10 tables**, all UUID primary keys, `snake_case` columns, timestamps on every entity.
+**11 tables**, all UUID primary keys, `snake_case` columns, timestamps on every entity.
 
 ### Entity Relationships
 
 ```
 User 1──1 CustomerProfile ──┐
 User 1──1 TechnicianProfile ┤
+User 1──* Notification      │
                             │
 CustomerProfile 1──* Booking *──1 TechnicianProfile
 Category 1──* Service *──1 TechnicianProfile
@@ -380,6 +386,22 @@ CustomerProfile 1──* Review *──1 TechnicianProfile
 
 </details>
 
+<details>
+<summary><b><code>notifications</code></b> — In-app notifications per user</summary>
+
+| Column       | Type                | Notes                                                     |
+| ------------ | ------------------- | --------------------------------------------------------- |
+| `id`         | UUID                | PK                                                        |
+| `user_id`    | UUID                | FK → users (cascade); indexed `(user_id, is_read)` & `(user_id, created_at)` |
+| `type`       | `TNotificationType` | Event kind                                                |
+| `title`      | VARCHAR(150)        |                                                           |
+| `message`    | VARCHAR(500)        |                                                           |
+| `data`       | JSON                | Nullable — deep-link payload (e.g. `{ target, bookingId }`) |
+| `is_read`    | BOOLEAN             | Default `false`                                           |
+| `created_at` | TIMESTAMP           |                                                           |
+
+</details>
+
 ### Enums
 
 | Enum               | Values                                                                               |
@@ -391,6 +413,7 @@ CustomerProfile 1──* Review *──1 TechnicianProfile
 | `TPaymentProvider` | `SSLCOMMERZ`, `STRIPE`                                                               |
 | `TDayOfWeek`       | `MONDAY` … `SUNDAY`                                                                  |
 | `TReviewStatus`    | `PENDING`, `PUBLISHED`, `HIDDEN`, `REJECTED`                                         |
+| `TNotificationType` | 22 event types — booking, payment, review, account, registration, onboarding, availability & service events |
 
 ---
 
@@ -617,6 +640,45 @@ Base path: **`/api`** · Full docs (try-it-out): **`GET /api/docs`**
 | ------- | ---------------------- | -------- | --------------------------------------- |
 | `GET`   | `/api/admin/users`     | 🛡️ Admin | List all users (filter + paginate)      |
 | `PATCH` | `/api/admin/users/:id` | 🛡️ Admin | Update a user's status (ban / activate) |
+
+### 🔔 Notifications — `/api/notifications`
+
+| Method  | Endpoint                          | Access           | Description                            |
+| ------- | --------------------------------- | ---------------- | -------------------------------------- |
+| `GET`   | `/api/notifications`              | 🔒 Authenticated | List own notifications (+ unread count) |
+| `GET`   | `/api/notifications/unread-count` | 🔒 Authenticated | Get unread count                       |
+| `PATCH` | `/api/notifications/read-all`     | 🔒 Authenticated | Mark all as read                       |
+| `PATCH` | `/api/notifications/:id/read`     | 🔒 Authenticated | Mark one as read                       |
+
+---
+
+## 🔔 Notification Flow
+
+In-app notifications are created **best-effort** — a notification failure never blocks the underlying action (booking, payment, etc.). Each notification is persisted to the `notifications` table and fetched via the [Notifications API](#-notifications--apinotifications). Every notification carries a `data` payload (e.g. `{ target: "booking", bookingId }`) for client-side deep-linking.
+
+**Who receives what:**
+
+| Event                             | 👤 Customer | 🛠️ Technician | 🛡️ Admin |
+| --------------------------------- | :---------: | :-----------: | :-------: |
+| Customer creates booking          |      —      |       ✅      |    ✅     |
+| Technician accepts booking        |      ✅     |       —       |    ✅     |
+| Technician declines booking       |      ✅     |       —       |    ✅     |
+| Customer cancels booking          |      —      |       ✅      |    ✅     |
+| Technician marks **In Progress**  |      ✅     |       —       |    ✅     |
+| Technician marks **Completed**    |      ✅     |       —       |    ✅     |
+| Payment successful                |      ✅     |       ✅      |    ✅     |
+| Payment failed / cancelled        |      ✅     |       —       |    ✅     |
+| Customer submits review (pending) |      —      |       —       |    ✅     |
+| Admin publishes review            |      ✅     |       ✅      |    —      |
+| New user / technician registers   |      —      |       —       |    ✅     |
+| Technician completes onboarding   |      —      |       —       |    ✅     |
+| Technician updates profile        |      —      |       —       |    ✅     |
+| Technician updates availability   |      —      |       —       |    ✅     |
+| Technician creates service        |      —      |       —       |    ✅     |
+| Technician updates service        |      —      |       —       |    ✅     |
+| Service deleted                   |      —      |    ✅ (owner)  |    ✅     |
+
+> The **admin** is the platform's audit sink — it receives a notification for essentially every meaningful action. Customers and technicians are only notified about events that concern them directly.
 
 ---
 
