@@ -8,7 +8,7 @@ export const authPaths = {
         content: { "application/json": { schema: { $ref: "#/components/schemas/RegisterBody" } } },
       },
       responses: {
-        "201": { description: "Registered; returns user + tokens." },
+        "201": { description: "Registered; returns the created user (no tokens — log in separately)." },
         "400": { $ref: "#/components/responses/ValidationError" },
         "409": { $ref: "#/components/responses/Conflict" },
       },
