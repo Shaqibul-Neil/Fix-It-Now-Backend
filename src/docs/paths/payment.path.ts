@@ -11,7 +11,7 @@ export const paymentPaths = {
         content: { "application/json": { schema: { $ref: "#/components/schemas/PaymentCreate" } } },
       },
       responses: {
-        "200": { description: "Returns SSLCommerz gateway redirect URL." },
+        "201": { description: "Payment session created; returns SSLCommerz gateway redirect URL." },
         "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
