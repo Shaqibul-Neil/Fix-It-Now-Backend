@@ -38,5 +38,8 @@ export const getDateFromPeriod = (days: number) =>
   new Date(Date.now() - days * MILLISECONDS_PER_DAY);
 
 //creating full name from first and last
-export const createFullName = (firstName: string, lastName: string) =>
-  `${firstName} ${lastName}`;
+export const createFullName = (
+  firstName?: string | null,
+  lastName?: string | null,
+  fallback = "",
+): string => `${firstName ?? ""} ${lastName ?? ""}`.trim() || fallback;

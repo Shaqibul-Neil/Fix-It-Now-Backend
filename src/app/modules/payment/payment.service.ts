@@ -209,8 +209,7 @@ export class PaymentService {
       failUrl: `${config.url}/api/payments/fail`,
       cancelUrl: `${config.url}/api/payments/cancel`,
       ipnUrl: `${config.url}/api/payments/ipn`,
-      customerName:
-        `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Customer",
+      customerName: createFullName(user?.firstName, user?.lastName, "Customer"),
       customerEmail: user?.email ?? "customer@fixitnow.com",
       customerPhone: "01700000000",
       customerAddress: booking.address,
