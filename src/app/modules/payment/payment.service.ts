@@ -135,14 +135,17 @@ export class PaymentService {
   //---------Create Payment (init gateway)-----------
   async createPayment(userId: string, bookingId: string) {
     //get the customer
-    const customer = await findCustomerProfileByUserId(userId);
+    const [customer, booking] = await Promise.all([
+      findCustomerProfileByUserId(userId),
+      prisma.booking.findUnique({
+        where: {
+          id: bookingId,
+        },
+        select: PAYMENT_CREATE_BOOKING_SELECT,
+      }),
+    ]);
     // booking must exist, be owned by this customer, and be ACCEPTED
-    const booking = await prisma.booking.findUnique({
-      where: {
-        id: bookingId,
-      },
-      select: PAYMENT_CREATE_BOOKING_SELECT,
-    });
+
     if (!booking) {
       throw new AppError("Booking not found.", httpStatus.NOT_FOUND);
     }

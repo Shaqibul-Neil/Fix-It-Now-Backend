@@ -2,7 +2,7 @@ import httpStatus from "http-status";
 import slugify from "slugify";
 import { AppError } from "./appError";
 
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 //Generates a URL-friendly slug from a string.
 export const generateSlug = (value: string): string => {
@@ -43,3 +43,26 @@ export const createFullName = (
   lastName?: string | null,
   fallback = "",
 ): string => `${firstName ?? ""} ${lastName ?? ""}`.trim() || fallback;
+
+//get the months
+export const monthWindows = () => {
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  return {
+    thisMonth: {
+      gte: startOfThisMonth,
+    },
+    lastMonth: {
+      gte: startOfLastMonth,
+      lt: startOfThisMonth,
+    },
+  };
+};
+
+//percentage calculation
+export const calculatePercentage = (value: number, total: number): number => {
+  if (total === 0) return 0;
+  return Number(((value / total) * 100).toFixed(2));
+};

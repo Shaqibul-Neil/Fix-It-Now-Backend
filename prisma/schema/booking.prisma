@@ -18,6 +18,8 @@ model Booking {
   completedAt DateTime? @map("completed_at")
   cancelledAt DateTime? @map("cancelled_at")
 
+  categoryName String @map("category_name")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -33,5 +35,6 @@ model Booking {
   @@index([technicianId])
   @@index([serviceId])
   @@index([status])
+  @@index([categoryName])
   @@map("bookings")
 }

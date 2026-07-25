@@ -1,10 +1,10 @@
 import { prisma } from "../../src/lib/prisma";
 
 export interface SeededCategories {
-  plumbing: { id: string };
-  electrical: { id: string };
-  cleaning: { id: string };
-  painting: { id: string };
+  plumbing: { id: string; name: string };
+  electrical: { id: string; name: string };
+  cleaning: { id: string; name: string };
+  painting: { id: string; name: string };
 }
 
 export async function seedCategories(): Promise<SeededCategories> {

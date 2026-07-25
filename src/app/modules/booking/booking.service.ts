@@ -160,6 +160,7 @@ export class BookingService {
         technicianId: service.technicianId,
         serviceId: service.id,
         amount: service.price,
+        categoryName: service.category.name,
         address: payload.address,
         city: payload.city,
         area: payload.area,

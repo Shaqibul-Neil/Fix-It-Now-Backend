@@ -1,15 +1,15 @@
 import { prisma } from "../../src/lib/prisma";
-import {
-  TDayOfWeek,
-  TRole,
-  TUserStatus,
-} from "../../generated/prisma/enums";
+import { TDayOfWeek, TRole, TUserStatus } from "../../generated/prisma/enums";
 import type { SeededCategories } from "./category.seed";
 
 export interface SeededTech {
   userId: string;
   profileId: string;
-  services: { id: string; price: number }[];
+  services: {
+    id: string;
+    price: number;
+    categoryName: string;
+  }[];
 }
 
 export async function seedTechnicians(
@@ -17,6 +17,14 @@ export async function seedTechnicians(
   passwordHash: string,
 ): Promise<SeededTech[]> {
   const { plumbing, electrical, cleaning, painting } = categories;
+
+  // categoryId → name lookup (booking snapshot e categoryName lagbe)
+  const categoryNameById = new Map<string, string>([
+    [plumbing.id, plumbing.name],
+    [electrical.id, electrical.name],
+    [cleaning.id, cleaning.name],
+    [painting.id, painting.name],
+  ]);
 
   const techSeed = [
     {
@@ -245,7 +253,7 @@ export async function seedTechnicians(
     });
     const profileId = user.technicianProfile!.id;
 
-    const services: { id: string; price: number }[] = [];
+    const services: SeededTech["services"] = [];
     for (const s of t.services) {
       const created = await prisma.service.create({
         data: {
@@ -257,7 +265,11 @@ export async function seedTechnicians(
           isActive: "isActive" in s ? s.isActive : true,
         },
       });
-      services.push({ id: created.id, price: s.price });
+      services.push({
+        id: created.id,
+        price: s.price,
+        categoryName: categoryNameById.get(s.categoryId) ?? "Unknown",
+      });
     }
 
     if (t.days.length > 0) {

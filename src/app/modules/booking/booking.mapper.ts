@@ -9,10 +9,9 @@ export const bookingListMapper = (
   id: booking.id,
   status: booking.status,
   amount: booking.amount,
+  category: booking.categoryName,
   scheduledAt: booking.scheduledAt,
   createdAt: booking.createdAt,
   serviceId: booking.service.id,
   serviceTitle: booking.service.title,
-  servicePrice: booking.service.price,
-  category: booking.service.category.name,
 });

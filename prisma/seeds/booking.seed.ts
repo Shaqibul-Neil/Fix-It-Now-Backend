@@ -232,6 +232,7 @@ export async function seedBookings(
         technicianId: tech.profileId,
         serviceId: service.id,
         amount: service.price,
+        categoryName: service.categoryName,
         status: cfg.status,
         address: "House 12, Road 3",
         city: "Dhaka",

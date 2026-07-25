@@ -6,18 +6,13 @@ export const BOOKING_LIST_SELECT = {
   id: true,
   status: true,
   amount: true,
+  categoryName: true,
   scheduledAt: true,
   createdAt: true,
   service: {
     select: {
       id: true,
       title: true,
-      price: true,
-      category: {
-        select: {
-          name: true,
-        },
-      },
     },
   },
 } as const satisfies Prisma.BookingSelect;
@@ -127,6 +122,7 @@ export const BOOKING_CREATE_SERVICE_SELECT = {
   price: true,
   technicianId: true,
   technician: { select: { userId: true } },
+  category: { select: { name: true } },
 } as const satisfies Prisma.ServiceSelect;
 
 //------------------------------------

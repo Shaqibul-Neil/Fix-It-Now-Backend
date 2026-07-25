@@ -132,6 +132,96 @@ Cheap to do, disproportionately impressive when someone opens the repo.
 
 ---
 
+## 8. 💰 Wallet, Escrow & Payouts
+
+Turns FixItNow's money flow from "customer pays, then ???" into a real
+marketplace ledger. High interview signal: escrow, double-entry-style ledgers,
+idempotency, and transactional integrity are exactly the topics a payments-aware
+interviewer probes.
+
+### Reality check (decides the whole design)
+
+SSLCommerz is a **single-merchant** gateway — all money lands in **one** merchant
+account (the platform/admin account). It does **not** split-deposit into a
+technician's bank at charge time. So the 60/40 split is a **ledger** in our DB,
+not a real bank transfer. A wallet balance = an amount we *owe* the technician
+(an IOU), not cash in their bank. Real cash moves only when admin sends
+bKash/bank on withdraw.
+
+| Option | Verdict |
+|---|---|
+| Admin gets full, then manually pays technician | ❌ Manual, error-prone, no audit trail, technician can't see what's owed |
+| Auto 60/40 into real technician bank at payment time | ❌ Impossible with SSLCommerz single-merchant |
+| **Auto 60/40 as a ledger split → in-app wallets → withdraw = payout request admin fulfills off-platform** | ✅ Standard marketplace/escrow model — build this |
+
+### Core decision: WHEN does the split happen?
+
+**At job COMPLETED, not at payment success** — this is escrow, and it's what
+protects us on refunds. Payment lands at `PAID`, *before* work is done; crediting
+the technician then makes a later refund/cancel a nightmare (they may have
+already withdrawn).
+
+```
+Payment SUCCESS  → 1000 sits in PLATFORM escrow (not yet split)
+Job COMPLETED    → split ledger: technician wallet +600, admin wallet +400
+Technician       → sees 600 available → requests withdraw
+Refund (pre-completion) → return from escrow, no wallet touched
+```
+
+### Data model (sketch)
+
+- **Wallet** — one per user: `{ id, userId, balance (Decimal, cached), createdAt }`
+- **WalletTransaction** — immutable append-only ledger; balance is a rebuildable cache:
+  `{ id, walletId, type: EARNING | PAYOUT | REFUND_REVERSAL | PLATFORM_FEE | ADJUSTMENT, amount (signed Decimal), balanceAfter, paymentId?, bookingId?, payoutId?, createdAt }`
+- **PayoutRequest** — the withdraw button:
+  `{ id, walletId, amount, status: PENDING | APPROVED | PAID | REJECTED, method: BKASH | BANK, accountDetails, processedById, processedAt, createdAt }`
+- **Refund** — admin refunds customer:
+  `{ id, paymentId, amount, reason, status, processedById, createdAt }`
+
+### Money-flow rules (must get right)
+
+1. **On payment SUCCESS** — do NOT touch technician wallet; money is escrow'd.
+2. **On booking COMPLETED** — in ONE `prisma.$transaction`: technician `EARNING +600`,
+   admin `PLATFORM_FEE +400`, mark booking `SETTLED` to block double-credit
+   (idempotency — same discipline as `finalizePayment`).
+3. **On withdraw** — create `PayoutRequest(PENDING)` and **debit wallet immediately**
+   (`PAYOUT -600`) so it can't be requested twice; admin marks `PAID` after sending
+   bKash; `REJECTED` → reverse the debit.
+4. **On refund** — clean only **before** completion (money still in escrow → refund
+   customer, wallet untouched). After completion the technician has earned it →
+   clawback needed. **Policy: refunds allowed only pre-completion.**
+
+### Guidelines
+
+- Split = **ledger, at COMPLETED, not at payment**; escrow between PAID and COMPLETED.
+- 60/40 as a config constant (`PLATFORM_FEE_PCT`), not hardcoded per-row.
+- Every split/withdraw/refund wrapped in `prisma.$transaction` — never partial.
+- `WalletTransaction` append-only → real audit trail, disputes provable.
+- Withdraw debits on request, not on approval.
+
+### Where it plugs in
+
+- Extends `payment.service.ts` (`finalizePayment` escrow) and the booking
+  completion flow (the split).
+- New `wallet` + `payout` modules; new `Wallet`, `WalletTransaction`,
+  `PayoutRequest`, `Refund` Prisma models + `Booking.SETTLED` status.
+- The `stats` module you're building reads wallet totals, pending payouts, and
+  platform revenue straight off the ledger.
+- Supersedes / absorbs the "Refunds & cancellation policy" row in §6.
+
+### Build order
+
+1. Prisma models + enums; `Booking.SETTLED`; `PLATFORM_FEE_PCT` config.
+2. Completion-split service (transactional, idempotent) hooked into booking COMPLETED.
+3. Wallet read endpoints (balance + ledger) for technician & admin.
+4. Payout request flow (create/debit → admin approve/pay/reject → reverse).
+5. Refund flow (pre-completion only).
+6. Stats reads over the ledger.
+
+**Effort:** 🟠 High — new subsystem, non-trivial data modeling, money-correctness critical.
+
+---
+
 ## 🎯 Recommended "Interview-Winning" Track
 
 If time is limited, this sequence delivers the **highest signal per hour** and tells one coherent story — *"I took a working CRUD backend and made it secure, real-time, intelligent, and production-ready."*

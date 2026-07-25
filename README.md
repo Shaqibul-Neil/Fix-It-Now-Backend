@@ -389,30 +389,30 @@ CustomerProfile 1──* Review *──1 TechnicianProfile
 <details>
 <summary><b><code>notifications</code></b> — In-app notifications per user</summary>
 
-| Column       | Type                | Notes                                                     |
-| ------------ | ------------------- | --------------------------------------------------------- |
-| `id`         | UUID                | PK                                                        |
+| Column       | Type                | Notes                                                                        |
+| ------------ | ------------------- | ---------------------------------------------------------------------------- |
+| `id`         | UUID                | PK                                                                           |
 | `user_id`    | UUID                | FK → users (cascade); indexed `(user_id, is_read)` & `(user_id, created_at)` |
-| `type`       | `TNotificationType` | Event kind                                                |
-| `title`      | VARCHAR(150)        |                                                           |
-| `message`    | VARCHAR(500)        |                                                           |
-| `data`       | JSON                | Nullable — deep-link payload (e.g. `{ target, bookingId }`) |
-| `is_read`    | BOOLEAN             | Default `false`                                           |
-| `created_at` | TIMESTAMP           |                                                           |
+| `type`       | `TNotificationType` | Event kind                                                                   |
+| `title`      | VARCHAR(150)        |                                                                              |
+| `message`    | VARCHAR(500)        |                                                                              |
+| `data`       | JSON                | Nullable — deep-link payload (e.g. `{ target, bookingId }`)                  |
+| `is_read`    | BOOLEAN             | Default `false`                                                              |
+| `created_at` | TIMESTAMP           |                                                                              |
 
 </details>
 
 ### Enums
 
-| Enum               | Values                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| `TRole`            | `CUSTOMER`, `TECHNICIAN`, `ADMIN`                                                    |
-| `TUserStatus`      | `ACTIVE`, `BANNED`                                                                   |
-| `TBookingStatus`   | `REQUESTED`, `ACCEPTED`, `DECLINED`, `PAID`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
-| `TPaymentStatus`   | `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`                                           |
-| `TPaymentProvider` | `SSLCOMMERZ`, `STRIPE`                                                               |
-| `TDayOfWeek`       | `MONDAY` … `SUNDAY`                                                                  |
-| `TReviewStatus`    | `PENDING`, `PUBLISHED`, `HIDDEN`, `REJECTED`                                         |
+| Enum                | Values                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `TRole`             | `CUSTOMER`, `TECHNICIAN`, `ADMIN`                                                                           |
+| `TUserStatus`       | `ACTIVE`, `BANNED`                                                                                          |
+| `TBookingStatus`    | `REQUESTED`, `ACCEPTED`, `DECLINED`, `PAID`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`                        |
+| `TPaymentStatus`    | `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`                                                                  |
+| `TPaymentProvider`  | `SSLCOMMERZ`, `STRIPE`                                                                                      |
+| `TDayOfWeek`        | `MONDAY` … `SUNDAY`                                                                                         |
+| `TReviewStatus`     | `PENDING`, `PUBLISHED`, `HIDDEN`, `REJECTED`                                                                |
 | `TNotificationType` | 22 event types — booking, payment, review, account, registration, onboarding, availability & service events |
 
 ---
@@ -643,12 +643,12 @@ Base path: **`/api`** · Full docs (try-it-out): **`GET /api/docs`**
 
 ### 🔔 Notifications — `/api/notifications`
 
-| Method  | Endpoint                          | Access           | Description                            |
-| ------- | --------------------------------- | ---------------- | -------------------------------------- |
+| Method  | Endpoint                          | Access           | Description                             |
+| ------- | --------------------------------- | ---------------- | --------------------------------------- |
 | `GET`   | `/api/notifications`              | 🔒 Authenticated | List own notifications (+ unread count) |
-| `GET`   | `/api/notifications/unread-count` | 🔒 Authenticated | Get unread count                       |
-| `PATCH` | `/api/notifications/read-all`     | 🔒 Authenticated | Mark all as read                       |
-| `PATCH` | `/api/notifications/:id/read`     | 🔒 Authenticated | Mark one as read                       |
+| `GET`   | `/api/notifications/unread-count` | 🔒 Authenticated | Get unread count                        |
+| `PATCH` | `/api/notifications/read-all`     | 🔒 Authenticated | Mark all as read                        |
+| `PATCH` | `/api/notifications/:id/read`     | 🔒 Authenticated | Mark one as read                        |
 
 ---
 
@@ -659,24 +659,24 @@ In-app notifications are created **best-effort** — a notification failure neve
 **Who receives what:**
 
 | Event                             | 👤 Customer | 🛠️ Technician | 🛡️ Admin |
-| --------------------------------- | :---------: | :-----------: | :-------: |
-| Customer creates booking          |      —      |       ✅      |    ✅     |
-| Technician accepts booking        |      ✅     |       —       |    ✅     |
-| Technician declines booking       |      ✅     |       —       |    ✅     |
-| Customer cancels booking          |      —      |       ✅      |    ✅     |
-| Technician marks **In Progress**  |      ✅     |       —       |    ✅     |
-| Technician marks **Completed**    |      ✅     |       —       |    ✅     |
-| Payment successful                |      ✅     |       ✅      |    ✅     |
-| Payment failed / cancelled        |      ✅     |       —       |    ✅     |
-| Customer submits review (pending) |      —      |       —       |    ✅     |
-| Admin publishes review            |      ✅     |       ✅      |    —      |
-| New user / technician registers   |      —      |       —       |    ✅     |
-| Technician completes onboarding   |      —      |       —       |    ✅     |
-| Technician updates profile        |      —      |       —       |    ✅     |
-| Technician updates availability   |      —      |       —       |    ✅     |
-| Technician creates service        |      —      |       —       |    ✅     |
-| Technician updates service        |      —      |       —       |    ✅     |
-| Service deleted                   |      —      |    ✅ (owner)  |    ✅     |
+| --------------------------------- | :---------: | :-----------: | :------: |
+| Customer creates booking          |      —      |      ✅       |    ✅    |
+| Technician accepts booking        |     ✅      |       —       |    ✅    |
+| Technician declines booking       |     ✅      |       —       |    ✅    |
+| Customer cancels booking          |      —      |      ✅       |    ✅    |
+| Technician marks **In Progress**  |     ✅      |       —       |    ✅    |
+| Technician marks **Completed**    |     ✅      |       —       |    ✅    |
+| Payment successful                |     ✅      |      ✅       |    ✅    |
+| Payment failed / cancelled        |     ✅      |       —       |    ✅    |
+| Customer submits review (pending) |      —      |       —       |    ✅    |
+| Admin publishes review            |     ✅      |      ✅       |    —     |
+| New user / technician registers   |      —      |       —       |    ✅    |
+| Technician completes onboarding   |      —      |       —       |    ✅    |
+| Technician updates profile        |      —      |       —       |    ✅    |
+| Technician updates availability   |      —      |       —       |    ✅    |
+| Technician creates service        |      —      |       —       |    ✅    |
+| Technician updates service        |      —      |       —       |    ✅    |
+| Service deleted                   |      —      |  ✅ (owner)   |    ✅    |
 
 > The **admin** is the platform's audit sink — it receives a notification for essentially every meaningful action. Customers and technicians are only notified about events that concern them directly.
 
@@ -698,7 +698,12 @@ This project deploys to Vercel as a serverless function.
 
 ## 📄 License
 
-**ISC** © [Md. Shaqibul Islam](mailto:shaqib.developer@gmail.com)
+Copyright © [Md. Shaqibul Islam](mailto:shaqib.developer@gmail.com).
+
+All rights reserved.
+
+This source code is available for viewing purposes only.
+No permission is granted to use, copy, modify, or distribute this code.
 
 <div align="center">
 
