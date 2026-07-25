@@ -1,5 +1,8 @@
 import type { Prisma } from "../../../../generated/prisma/client";
-import { TReviewStatus } from "../../../../generated/prisma/enums";
+import {
+  TBookingStatus,
+  TReviewStatus,
+} from "../../../../generated/prisma/enums";
 
 export const TECHNICIAN_LIST_SELECT = {
   id: true,
@@ -13,6 +16,7 @@ export const TECHNICIAN_LIST_SELECT = {
     select: {
       firstName: true,
       lastName: true,
+      email: true,
     },
   },
 } as const satisfies Prisma.TechnicianProfileSelect;
@@ -86,3 +90,11 @@ export const TECHNICIAN_MY_PROFILE_INCLUDE = {
     },
   },
 } as const satisfies Prisma.TechnicianProfileInclude;
+
+// admin table: summary + completed-jobs count
+export const ADMIN_TECHNICIAN_LIST_SELECT = {
+  ...TECHNICIAN_LIST_SELECT,
+  _count: {
+    select: { bookings: { where: { status: TBookingStatus.COMPLETED } } },
+  },
+} as const satisfies Prisma.TechnicianProfileSelect;

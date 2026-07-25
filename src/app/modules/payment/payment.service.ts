@@ -2,7 +2,7 @@ import httpStatus from "http-status";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
-import { findCustomerProfileByUserId } from "../customer/customer.utils";
+import { findCustomerProfileByUserId } from "../customer/customer.model";
 import {
   TBookingStatus,
   TPaymentProvider,

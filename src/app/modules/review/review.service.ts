@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
-import { findCustomerProfileByUserId } from "../customer/customer.utils";
+import { findCustomerProfileByUserId } from "../customer/customer.model";
 import type {
   TCreateReviewPayload,
   TListReviewQuery,
@@ -20,7 +20,8 @@ import {
   REVIEW_OWNER_SELECT,
   REVIEW_SELECT,
 } from "./review.include";
-import { buildReviewFilter, computeTechnicianRating } from "./review.utils";
+import { buildReviewFilter } from "./review.utils";
+import { computeTechnicianRating } from "./review.model";
 import type { Prisma } from "../../../../generated/prisma/client";
 import {
   notifyReviewPublished,

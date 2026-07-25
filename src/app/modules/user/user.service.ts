@@ -8,7 +8,11 @@ import type {
   TUpdateUserStatusPayload,
 } from "./user.validation";
 import { buildUserFilter } from "./user.utils";
-import { USER_SELECT, USER_STATUS_SELECT } from "./user.include";
+import {
+  ADMIN_USER_LIST_SELECT,
+  USER_SELECT,
+  USER_STATUS_SELECT,
+} from "./user.include";
 
 export class UserService {
   //-------------ADMIN ACTIONS----------
@@ -23,12 +27,17 @@ export class UserService {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        select: USER_SELECT,
+        select: ADMIN_USER_LIST_SELECT,
       }),
       prisma.user.count({ where }),
     ]);
 
-    return { items, meta: { page, limit, total } };
+    const data = items.map(({ customerProfile, ...rest }) => ({
+      ...rest,
+      totalBookings: customerProfile?._count.bookings ?? 0,
+    }));
+
+    return { items: data, meta: { page, limit, total } };
   }
 
   //-------------ADMIN ACTIONS----------

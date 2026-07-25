@@ -6,16 +6,14 @@ import type {
   TListTechniciansQuery,
   TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
-import {
-  buildTechnicianFilter,
-  findTechnicianProfileByUserId,
-} from "./technician.utils";
+import { buildTechnicianFilter } from "./technician.utils";
 import {
   createFullName,
   ensureNotEmptyObject,
   getPagination,
 } from "../../../utils/utils";
 import {
+  ADMIN_TECHNICIAN_LIST_SELECT,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
   TECHNICIAN_MY_PROFILE_INCLUDE,
@@ -25,6 +23,12 @@ import {
   notifyTechnicianOnboarded,
   notifyTechnicianProfileUpdated,
 } from "../notification/notification.events";
+import { findTechnicianProfileByUserId } from "./technician.model";
+import {
+  technicianDetailsMapper,
+  technicianListMapper,
+} from "./technician.mapper";
+import { getBookingStatusBreakdown } from "../booking/booking.model";
 
 export class TechnicianService {
   //-------------TECHNICIAN ACTIONS--------------
@@ -131,7 +135,7 @@ export class TechnicianService {
     ]);
 
     return {
-      items,
+      items: items.map(technicianListMapper),
       meta: { page, limit, total },
     };
   }
@@ -145,7 +149,48 @@ export class TechnicianService {
     if (!technician) {
       throw new AppError("Technician not found.", httpStatus.NOT_FOUND);
     }
-    return technician;
+    return technicianDetailsMapper(technician);
+  }
+
+  //--------------ADMIN: technician list + completed jobs-------------
+  async getAllTechniciansForAdmin(query: TListTechniciansQuery) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+    const where = buildTechnicianFilter(query);
+
+    const [items, total] = await prisma.$transaction([
+      prisma.technicianProfile.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { averageRating: "desc" },
+        select: ADMIN_TECHNICIAN_LIST_SELECT,
+      }),
+      prisma.technicianProfile.count({ where }),
+    ]);
+
+    const data = items.map(({ _count, ...rest }) => ({
+      ...technicianListMapper(rest),
+      completedJobs: _count.bookings,
+    }));
+
+    return { items: data, meta: { page, limit, total } };
+  }
+
+  //--------------ADMIN: technician detail + bookings by status-------------
+  async getTechnicianByIdForAdmin(id: string) {
+    const technician = await prisma.technicianProfile.findUnique({
+      where: { id },
+      select: TECHNICIAN_DETAILS_SELECT,
+    });
+    if (!technician) {
+      throw new AppError("Technician not found.", httpStatus.NOT_FOUND);
+    }
+
+    const bookingsByStatus = await getBookingStatusBreakdown({
+      technicianId: id,
+    });
+
+    return { ...technicianDetailsMapper(technician), bookingsByStatus };
   }
 }
 

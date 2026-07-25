@@ -4,9 +4,12 @@ import {
 } from "../../../../../generated/prisma/client";
 import { calculatePercentage } from "../../../../utils/utils";
 import {
+  getBookingStatusBreakdown,
+  groupBookingByStatus,
+} from "../../booking/booking.model";
+import {
   getAllCategoryNames,
   groupBookingByCategory,
-  groupBookingByStatus,
   groupBookingsByCustomer,
   totalBooking,
   totalRevenue,
@@ -142,15 +145,10 @@ export class AdminStatsService {
   //Bookings by status
   async getAdminBookingByStatus(query: TStatsPeriodQuery) {
     const days = query.period ?? 30;
-    const rows = await groupBookingByStatus({
+    const result = await getBookingStatusBreakdown({
       createdAt: resolveRange(query),
     });
 
-    // Passed Object.values(...) to get an array of status strings instead of the enum object
-    const result = shapeByStatus(
-      rows,
-      Object.values(TBookingStatus) as TBookingStatus[],
-    );
     return { period: `${days} days`, result };
   }
 

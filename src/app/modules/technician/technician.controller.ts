@@ -90,6 +90,39 @@ class TechnicianController {
       data: result,
     });
   });
+
+  //--------------Admin: technician list-------------
+  getAllTechniciansForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const query = req.query as TListTechniciansQuery;
+      const { items, meta } =
+        await this.technicianService.getAllTechniciansForAdmin(query);
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Technicians fetched successfully",
+        data: items,
+        meta,
+      });
+    },
+  );
+
+  //--------------Admin: technician detail-------------
+  getTechnicianByIdForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const result = await this.technicianService.getTechnicianByIdForAdmin(
+        req.params.id as string,
+      );
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Technician details fetched successfully",
+        data: result,
+      });
+    },
+  );
 }
 
 export const technicianController = new TechnicianController(technicianService);

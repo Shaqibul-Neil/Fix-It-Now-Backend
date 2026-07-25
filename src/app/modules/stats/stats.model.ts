@@ -35,15 +35,6 @@ export const groupBookingsByCustomer = async (
   return prisma.booking.groupBy({ by: ["customerId"], where, _count: true });
 };
 
-//Group booking by Status
-export const groupBookingByStatus = async (where: Prisma.BookingWhereInput) => {
-  return prisma.booking.groupBy({
-    by: ["status"],
-    where,
-    _count: true,
-  });
-};
-
 //group booking by category
 export const groupBookingByCategory = async (
   where: Prisma.BookingWhereInput,

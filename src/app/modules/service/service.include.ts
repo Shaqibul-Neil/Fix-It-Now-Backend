@@ -78,17 +78,12 @@ export const SERVICE_MY_LIST_INCLUDE = {
 export const SERVICE_PUBLIC_LIST_INCLUDE = {
   category: {
     select: {
-      id: true,
       name: true,
     },
   },
   technician: {
     select: {
-      id: true,
-      city: true,
-      area: true,
       averageRating: true,
-      hourlyRate: true,
       users: {
         select: {
           firstName: true,
@@ -96,6 +91,26 @@ export const SERVICE_PUBLIC_LIST_INCLUDE = {
           email: true,
         },
       },
+    },
+  },
+} as const satisfies Prisma.ServiceInclude;
+
+// admin table: public card + total booking count
+export const ADMIN_SERVICE_LIST_INCLUDE = {
+  ...SERVICE_PUBLIC_LIST_INCLUDE,
+  _count: { select: { bookings: true } },
+} as const satisfies Prisma.ServiceInclude;
+
+// admin detail
+export const SERVICE_DETAILS_INCLUDE = {
+  category: { select: { id: true, name: true } },
+  technician: {
+    select: {
+      id: true,
+      city: true,
+      area: true,
+      averageRating: true,
+      users: { select: { firstName: true, lastName: true } },
     },
   },
 } as const satisfies Prisma.ServiceInclude;

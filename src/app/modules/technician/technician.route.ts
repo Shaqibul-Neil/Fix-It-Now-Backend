@@ -52,5 +52,25 @@ export const technicianRoute: TRouteModule = {
       middlewares: [validateRequest(technicianIdParamSchema)],
       handler: technicianController.getTechnicianById,
     },
+
+    // ---------------Admin----------------
+    {
+      method: "get",
+      path: "/admin/list",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(listTechniciansSchema),
+      ),
+      handler: technicianController.getAllTechniciansForAdmin,
+    },
+    {
+      method: "get",
+      path: "/admin/:id",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(technicianIdParamSchema),
+      ),
+      handler: technicianController.getTechnicianByIdForAdmin,
+    },
   ],
 };

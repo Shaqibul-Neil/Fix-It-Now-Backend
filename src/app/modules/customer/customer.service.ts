@@ -2,7 +2,7 @@ import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { ensureNotEmptyObject } from "../../../utils/utils";
-import { findCustomerProfileByUserId } from "./customer.utils";
+import { findCustomerProfileByUserId } from "./customer.model";
 import type { TUpdateCustomerProfilePayload } from "./customer.validation";
 import { CUSTOMER_PROFILE_SELECT } from "./customer.include";
 import { customerProfileMapper } from "./customer.mapper";

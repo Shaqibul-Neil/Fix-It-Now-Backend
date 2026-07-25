@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { Prisma, TRole } from "../../../../generated/prisma/client";
 import { AppError } from "../../../utils/appError";
-import { findTechnicianProfileByUserId } from "../technician/technician.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.model";
 import type {
   TCreateServicePayload,
   TListServicesQuery,
@@ -20,14 +20,21 @@ import {
   notifyServiceDeleted,
 } from "../notification/notification.events";
 import {
+  ADMIN_SERVICE_LIST_INCLUDE,
   SERVICE_CATEGORY_CHECK_SELECT,
   SERVICE_CREATED_INCLUDE,
   SERVICE_DELETE_SELECT,
+  SERVICE_DETAILS_INCLUDE,
   SERVICE_MY_LIST_INCLUDE,
   SERVICE_OWNERSHIP_SELECT,
   SERVICE_PUBLIC_LIST_INCLUDE,
   SERVICE_UPDATED_INCLUDE,
 } from "./service.include";
+import { getBookingStatusBreakdown } from "../booking/booking.model";
+import {
+  serviceAdminListMapper,
+  servicePublicListMapper,
+} from "./service.mapper";
 
 export class ServiceService {
   //----------Category Must Exist----------
@@ -227,6 +234,41 @@ export class ServiceService {
     return { id: serviceId };
   }
 
+  //------------------ADMIN: service list + booking count-----------------
+  async getAllServicesForAdmin(query: TListServicesQuery) {
+    const { page, limit, skip } = getPagination(query.page, query.limit);
+    const where = buildServiceFilter(query);
+
+    const [items, total] = await prisma.$transaction([
+      prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: ADMIN_SERVICE_LIST_INCLUDE,
+      }),
+      prisma.service.count({ where }),
+    ]);
+
+    return {
+      items: items.map(serviceAdminListMapper),
+      meta: { page, limit, total },
+    };
+  }
+
+  //------------------ADMIN: service detail + bookings by status-----------------
+  async getServiceByIdForAdmin(id: string) {
+    const service = await prisma.service.findUnique({
+      where: { id },
+      include: SERVICE_DETAILS_INCLUDE,
+    });
+    if (!service)
+      throw new AppError("Service not found.", httpStatus.NOT_FOUND);
+
+    const bookingsByStatus = await getBookingStatusBreakdown({ serviceId: id });
+    return { ...service, bookingsByStatus };
+  }
+
   //------------------PUBLIC-----------------
   //--------------Get All Service-------------
   async getAllServices(query: TListServicesQuery) {
@@ -248,7 +290,10 @@ export class ServiceService {
       prisma.service.count({ where }),
     ]);
 
-    return { items, meta: { page, limit, total } };
+    return {
+      items: items.map(servicePublicListMapper),
+      meta: { page, limit, total },
+    };
   }
 }
 

@@ -3,7 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import type { TDayOfWeek } from "../../../../generated/prisma/enums";
 import type { TSetAvailabilityPayload } from "./availabilitySlot.validation";
-import { findTechnicianProfileByUserId } from "../technician/technician.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.model";
 import { createFullName } from "../../../utils/utils";
 import { notifyAvailabilityUpdated } from "../notification/notification.events";
 import {

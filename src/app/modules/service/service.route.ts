@@ -55,5 +55,25 @@ export const serviceRoute: TRouteModule = {
       ),
       handler: serviceController.deleteService,
     },
+
+    // admin — service list + detail
+    {
+      method: "get",
+      path: "/services/admin/list",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(listServicesSchema),
+      ),
+      handler: serviceController.getAllServicesForAdmin,
+    },
+    {
+      method: "get",
+      path: "/services/admin/:id",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(serviceIdParamSchema),
+      ),
+      handler: serviceController.getServiceByIdForAdmin,
+    },
   ],
 };

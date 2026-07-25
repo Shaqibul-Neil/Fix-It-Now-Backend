@@ -9,7 +9,7 @@ import type {
   TListBookingsQuery,
   TUpdateBookingStatusPayload,
 } from "./booking.validation";
-import { findCustomerProfileByUserId } from "../customer/customer.utils";
+import { findCustomerProfileByUserId } from "../customer/customer.model";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { getDayOfWeek, getTimeString } from "../../../utils/date";
@@ -26,7 +26,7 @@ import {
   BOOKING_STATUS_RESULT_SELECT,
   BOOKING_STATUS_UPDATE_SELECT,
 } from "./booking.include";
-import { findTechnicianProfileByUserId } from "../technician/technician.utils";
+import { findTechnicianProfileByUserId } from "../technician/technician.model";
 import { bookingListMapper } from "./booking.mapper";
 import {
   notifyBookingAccepted,

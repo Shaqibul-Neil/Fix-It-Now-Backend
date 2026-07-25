@@ -17,3 +17,11 @@ export const USER_STATUS_SELECT = {
   role: true,
   status: true,
 } as const satisfies Prisma.UserSelect;
+
+// admin table: user row + total bookings placed (only customers have a profile)
+export const ADMIN_USER_LIST_SELECT = {
+  ...USER_SELECT,
+  customerProfile: {
+    select: { _count: { select: { bookings: true } } },
+  },
+} as const satisfies Prisma.UserSelect;

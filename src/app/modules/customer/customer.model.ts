@@ -2,6 +2,7 @@ import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 
+// look up a customer profile
 export const findCustomerProfileByUserId = async (userId: string) => {
   const profile = await prisma.customerProfile.findUnique({
     where: { userId },

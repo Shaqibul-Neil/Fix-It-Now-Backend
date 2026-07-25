@@ -103,6 +103,39 @@ class ServiceController {
       meta,
     });
   });
+
+  //--------------Admin: service list-------------
+  getAllServicesForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const query = req.query as TListServicesQuery;
+      const { items, meta } =
+        await this.serviceService.getAllServicesForAdmin(query);
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Services fetched successfully",
+        data: items,
+        meta,
+      });
+    },
+  );
+
+  //--------------Admin: service detail-------------
+  getServiceByIdForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const result = await this.serviceService.getServiceByIdForAdmin(
+        req.params.id as string,
+      );
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Service details fetched successfully",
+        data: result,
+      });
+    },
+  );
 }
 
 export const serviceController = new ServiceController(serviceService);
