@@ -19,3 +19,4 @@ export const PERIODS = ["7", "30", "90", "365"] as const;
 
 export type TPeriod = (typeof PERIODS)[number];
 export type TRange = { gte: Date; lte: Date };
+export type TInterval = "day" | "week" | "month";

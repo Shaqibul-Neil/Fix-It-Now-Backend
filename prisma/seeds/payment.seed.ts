@@ -44,7 +44,7 @@ export async function seedPayments(bookings: SeededBooking[]): Promise<number> {
         transactionId: randomUUID(), // UUID — matches payment.service.ts format
         valId: isPaid ? makeValId(paidAt) : null,
         method: isPaid ? (b.payment.method ?? "VISA-CARD") : null,
-        paidAt: isPaid ? paidAt : null,
+        paidAt,
       },
     });
   }

@@ -1,8 +1,8 @@
 import type { Prisma } from "../../../../generated/prisma/client";
 
 //------------------------------------
-// Booking list (Customer / Technician / Admin listing)
-export const BOOKING_LIST_SELECT = {
+// Booking list (shared columns every list row needs)
+export const BOOKING_LIST_BASE = {
   id: true,
   status: true,
   amount: true,
@@ -15,6 +15,38 @@ export const BOOKING_LIST_SELECT = {
       title: true,
     },
   },
+} as const satisfies Prisma.BookingSelect;
+
+// reusable counterparty shape (name + contact)
+const LIST_PARTY_SELECT = {
+  id: true,
+  phone: true,
+  users: {
+    select: { firstName: true, lastName: true, email: true },
+  },
+} as const satisfies Prisma.TechnicianProfileSelect &
+  Prisma.CustomerProfileSelect;
+
+//------------------------------------
+// Customer's list -> sees the TECHNICIAN (counterparty)
+export const CUSTOMER_BOOKING_LIST_SELECT = {
+  ...BOOKING_LIST_BASE,
+  technician: { select: LIST_PARTY_SELECT },
+} as const satisfies Prisma.BookingSelect;
+
+//------------------------------------
+// Technician's list -> sees the CUSTOMER
+export const TECHNICIAN_BOOKING_LIST_SELECT = {
+  ...BOOKING_LIST_BASE,
+  customer: { select: LIST_PARTY_SELECT },
+} as const satisfies Prisma.BookingSelect;
+
+//------------------------------------
+// Admin's list -> sees BOTH parties
+export const ADMIN_BOOKING_LIST_SELECT = {
+  ...BOOKING_LIST_BASE,
+  customer: { select: LIST_PARTY_SELECT },
+  technician: { select: LIST_PARTY_SELECT },
 } as const satisfies Prisma.BookingSelect;
 
 //------------------------------------

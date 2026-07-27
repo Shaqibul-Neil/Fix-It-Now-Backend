@@ -51,3 +51,12 @@ export const getAllCategoryNames = async (): Promise<string[]> => {
   const result = await prisma.category.findMany({ select: { name: true } });
   return result.map((r) => r.name);
 };
+
+//get all payments
+export const getPaymentsInRange = async (where: Prisma.PaymentWhereInput) => {
+  return prisma.payment.findMany({
+    where,
+    select: { paidAt: true, amount: true },
+    orderBy: { paidAt: "asc" },
+  });
+};

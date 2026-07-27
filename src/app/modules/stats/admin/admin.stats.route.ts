@@ -14,5 +14,11 @@ export const adminStatsRoute: TRouteModule = {
       middlewares: roleRoute([TRole.ADMIN], validateRequest(statsPeriodSchema)),
       handler: adminStatsController.getAdminDashboard,
     },
+    {
+      method: "get",
+      path: "/dashboard/last-five-bookings",
+      middlewares: roleRoute([TRole.ADMIN]),
+      handler: adminStatsController.getLastFiveBooking,
+    },
   ],
 };

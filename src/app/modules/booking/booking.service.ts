@@ -22,12 +22,18 @@ import {
   BOOKING_CANCEL_SELECT,
   BOOKING_CREATE_SERVICE_SELECT,
   BOOKING_CREATED_INCLUDE,
-  BOOKING_LIST_SELECT,
   BOOKING_STATUS_RESULT_SELECT,
   BOOKING_STATUS_UPDATE_SELECT,
+  ADMIN_BOOKING_LIST_SELECT,
+  CUSTOMER_BOOKING_LIST_SELECT,
+  TECHNICIAN_BOOKING_LIST_SELECT,
 } from "./booking.include";
 import { findTechnicianProfileByUserId } from "../technician/technician.model";
-import { bookingListMapper } from "./booking.mapper";
+import {
+  adminBookingListMapper,
+  customerBookingListMapper,
+  technicianBookingListMapper,
+} from "./booking.mapper";
 import {
   notifyBookingAccepted,
   notifyBookingCancelled,
@@ -74,9 +80,11 @@ export class BookingService {
   }
 
   //Shared Booking List query
-  private async bookingLists(
+  private async bookingLists<S extends Prisma.BookingSelect, R>(
     baseWhere: Prisma.BookingWhereInput,
     query: TListBookingsQuery,
+    select: S,
+    mapper: (booking: Prisma.BookingGetPayload<{ select: S }>) => R,
   ) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
 
@@ -90,13 +98,13 @@ export class BookingService {
         orderBy: {
           createdAt: "desc",
         },
-        select: BOOKING_LIST_SELECT,
+        select,
       }),
 
       prisma.booking.count({ where }),
     ]);
     return {
-      items: items.map(bookingListMapper),
+      items: (items as Prisma.BookingGetPayload<{ select: S }>[]).map(mapper),
       meta: {
         page,
         limit,
@@ -250,7 +258,12 @@ export class BookingService {
   //-----------Get Customer's Bookings List-----------
   async getCustomerBookings(userId: string, query: TListBookingsQuery) {
     const customer = await findCustomerProfileByUserId(userId);
-    return this.bookingLists({ customerId: customer.id }, query);
+    return this.bookingLists(
+      { customerId: customer.id },
+      query,
+      CUSTOMER_BOOKING_LIST_SELECT,
+      customerBookingListMapper,
+    );
   }
 
   //-----------Booking Details-----------
@@ -297,6 +310,8 @@ export class BookingService {
         technicianId: technician.id,
       },
       query,
+      TECHNICIAN_BOOKING_LIST_SELECT,
+      technicianBookingListMapper,
     );
   }
 
@@ -413,7 +428,12 @@ export class BookingService {
   //-------------ADMIN ACTIONS----------
   //----------Get All Bookings List---------
   async getAllBookings(query: TListBookingsQuery) {
-    return this.bookingLists({}, query);
+    return this.bookingLists(
+      {},
+      query,
+      ADMIN_BOOKING_LIST_SELECT,
+      adminBookingListMapper,
+    );
   }
 }
 export const bookingService = new BookingService();

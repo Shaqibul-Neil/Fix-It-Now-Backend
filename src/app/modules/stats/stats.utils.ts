@@ -1,10 +1,16 @@
-import type { TRange } from "../../../types/types";
+import type { Prisma } from "../../../../generated/prisma/client";
+import type { TInterval, TRange } from "../../../types/types";
 import {
   calculatePercentage,
+  dayBucketKey,
+  generateBuckets,
   getDateFromPeriod,
   MILLISECONDS_PER_DAY,
+  monthBucketKey,
+  pickInterval,
+  weekBucketKey,
 } from "../../../utils/utils";
-import type { IStatData, TMetricType } from "./stats.interface";
+import type { IStatData, TMetricType, TRevenueBucket } from "./stats.interface";
 import type { TStatsPeriodQuery } from "./stats.validation";
 
 //metrics data with month over month comparison
@@ -94,5 +100,54 @@ export const shapeByCategory = (
   return categories.map((category) => ({
     category,
     count: counts.get(category) ?? 0,
+  }));
+};
+
+// Group payments into per-day revenue totals, zero-filling days with no sales.
+export const bucketRevenueByInterval = (
+  rows: { paidAt: Date; amount: Prisma.Decimal }[],
+  range: TRange,
+): TRevenueBucket[] => {
+  const interval = pickInterval(range);
+
+  /**
+   * Step 1:
+   * Group payments
+   */
+
+  const totals = rows.reduce<Record<string, number>>((acc, row) => {
+    let key: string;
+
+    if (interval === "day") {
+      key = dayBucketKey(row.paidAt);
+    } else if (interval === "week") {
+      key = weekBucketKey(row.paidAt, range);
+    } else {
+      key = monthBucketKey(row.paidAt);
+    }
+    acc[key] = (acc[key] ?? 0) + row.amount.toNumber();
+
+    return acc;
+  }, {});
+
+  /**
+   * Step 2:
+   * Zero fill missing buckets
+   */
+
+  const buckets = generateBuckets(range, interval);
+
+  return buckets.map((date) => ({ date, total: totals[date] ?? 0 }));
+};
+
+// Overlay two equal-length daily arrays by index (period-over-period).
+export const zipRevenueSeries = (
+  current: TRevenueBucket[],
+  previous: TRevenueBucket[],
+): { date: string; current: number; previous: number }[] => {
+  return current.map((day, i) => ({
+    date: day.date,
+    current: day.total,
+    previous: previous[i]?.total ?? 0,
   }));
 };

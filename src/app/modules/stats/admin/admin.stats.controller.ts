@@ -19,6 +19,18 @@ class AdminStatsController {
       data: result,
     });
   });
+
+  // ---------- Last Five Bookings ----------
+  getLastFiveBooking = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const result = await this.adminStatsService.getLastFiveCompletedBooking();
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Last Five Booking fetched successfully",
+      data: result,
+    });
+  });
 }
 
 export const adminStatsController = new AdminStatsController(adminStatsService);

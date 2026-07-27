@@ -2,36 +2,44 @@ import {
   TBookingStatus,
   TPaymentStatus,
 } from "../../../../../generated/prisma/client";
+import { prisma } from "../../../../lib/prisma";
 import { calculatePercentage } from "../../../../utils/utils";
+import { ADMIN_BOOKING_LIST_SELECT } from "../../booking/booking.include";
+import { adminBookingListMapper } from "../../booking/booking.mapper";
 import {
   getBookingStatusBreakdown,
   groupBookingByStatus,
 } from "../../booking/booking.model";
 import {
   getAllCategoryNames,
+  getPaymentsInRange,
   groupBookingByCategory,
   groupBookingsByCustomer,
   totalBooking,
   totalRevenue,
 } from "../stats.model";
 import {
+  bucketRevenueByInterval,
   buildMetrics,
   calculateRepeatRate,
   resolveComparison,
   resolveRange,
   shapeByCategory,
   shapeByStatus,
+  zipRevenueSeries,
 } from "../stats.utils";
 import type { TStatsPeriodQuery } from "../stats.validation";
 
 export class AdminStatsService {
   //  Aggregated dashboard: ONE call, ONE filter
   async getAdminDashboard(query: TStatsPeriodQuery) {
-    const [overview, bookingByStatus, bookingByCategory] = await Promise.all([
-      this.getAdminDashboardOverview(query),
-      this.getAdminBookingByStatus(query),
-      this.getAdminBookingByCategory(query),
-    ]);
+    const [overview, bookingByStatus, bookingByCategory, revenueTrend] =
+      await Promise.all([
+        this.getAdminDashboardOverview(query),
+        this.getAdminBookingByStatus(query),
+        this.getAdminBookingByCategory(query),
+        this.getAdminRevenueTrend(query),
+      ]);
 
     return {
       timePeriod: overview.timePeriod,
@@ -39,6 +47,7 @@ export class AdminStatsService {
       charts: {
         bookingsByStatus: bookingByStatus.result,
         bookingByCategory: bookingByCategory.result,
+        revenueTrend: revenueTrend.result,
       },
     };
   }
@@ -163,6 +172,41 @@ export class AdminStatsService {
     ]);
     const result = shapeByCategory(rows, categories);
     return { period: `${days} days`, result };
+  }
+
+  //Revenue Trend
+  async getAdminRevenueTrend(query: TStatsPeriodQuery) {
+    const { current, previous } = resolveComparison(query);
+
+    // fetch both periods in parallel
+    const [currentRows, previousRows] = await Promise.all([
+      getPaymentsInRange({
+        status: TPaymentStatus.SUCCESS,
+        paidAt: current,
+      }),
+      getPaymentsInRange({
+        status: TPaymentStatus.SUCCESS,
+        paidAt: previous,
+      }),
+    ]);
+
+    // bucket EACH over its OWN range (both come out equal length)
+    const currentSeries = bucketRevenueByInterval(currentRows, current);
+    const previousSeries = bucketRevenueByInterval(previousRows, previous);
+
+    const result = zipRevenueSeries(currentSeries, previousSeries);
+    return { result };
+  }
+
+  //last 5 booking
+  async getLastFiveCompletedBooking() {
+    const result = await prisma.booking.findMany({
+      where: { status: TBookingStatus.COMPLETED },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: ADMIN_BOOKING_LIST_SELECT,
+    });
+    return result.map(adminBookingListMapper);
   }
 }
 

@@ -6,3 +6,8 @@ export interface IStatData {
   changeValue?: number;
   changePercentage?: number;
 }
+
+export type TRevenueBucket = {
+  date: string;
+  total: number;
+};
