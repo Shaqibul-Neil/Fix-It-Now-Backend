@@ -27,6 +27,7 @@ const config = {
     store_id: env.SSL_STORE_ID as string,
     store_passwd: env.SSL_STORE_PASSWORD as string,
   },
+  technician_share: 0.6,
 };
 
 export default config;

@@ -14,6 +14,7 @@ const mapBookingBase = (booking: {
   categoryName: string;
   scheduledAt: Date;
   createdAt: Date;
+  completedAt: Date | null;
   service: { id: string; title: string };
 }) => ({
   id: booking.id,
@@ -22,6 +23,7 @@ const mapBookingBase = (booking: {
   category: booking.categoryName,
   scheduledAt: booking.scheduledAt,
   createdAt: booking.createdAt,
+  completedAt: booking.completedAt,
   serviceId: booking.service.id,
   serviceTitle: booking.service.title,
 });

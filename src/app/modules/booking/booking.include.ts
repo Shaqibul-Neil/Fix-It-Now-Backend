@@ -9,6 +9,7 @@ export const BOOKING_LIST_BASE = {
   categoryName: true,
   scheduledAt: true,
   createdAt: true,
+  completedAt: true,
   service: {
     select: {
       id: true,

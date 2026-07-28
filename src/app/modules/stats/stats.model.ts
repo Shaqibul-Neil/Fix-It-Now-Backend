@@ -60,3 +60,56 @@ export const getPaymentsInRange = async (where: Prisma.PaymentWhereInput) => {
     orderBy: { paidAt: "asc" },
   });
 };
+
+//get last 5 booking based on where
+export const getLastFiveBookings = async <S extends Prisma.BookingSelect>({
+  where,
+  select,
+  orderBy,
+}: {
+  where: Prisma.BookingWhereInput;
+  select: S;
+  orderBy: Prisma.BookingOrderByWithRelationInput;
+}): Promise<Prisma.BookingGetPayload<{ select: S }>[]> => {
+  const result = await prisma.booking.findMany({
+    where,
+    orderBy,
+    take: 5,
+    select,
+  });
+
+  return result as Prisma.BookingGetPayload<{ select: S }>[];
+};
+
+// Sum of booking amounts for a given filter.
+export const sumBookingAmount = async (
+  where: Prisma.BookingWhereInput,
+): Promise<number> => {
+  const result = await prisma.booking.aggregate({
+    where,
+    _sum: { amount: true },
+  });
+  return Number(result._sum.amount ?? 0);
+};
+
+// Technician current average rating
+export const getTechnicianAverageRating = async (
+  technicianId: string,
+): Promise<number> => {
+  const profile = await prisma.technicianProfile.findUnique({
+    where: { id: technicianId },
+    select: { averageRating: true },
+  });
+  return Number(profile?.averageRating ?? 0);
+};
+
+// Completed bookings in a range
+export const getCompletedBookingsInRange = async (
+  where: Prisma.BookingWhereInput,
+) => {
+  return prisma.booking.findMany({
+    where,
+    select: { completedAt: true, amount: true },
+    orderBy: { completedAt: "asc" },
+  });
+};

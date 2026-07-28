@@ -209,6 +209,23 @@ Refund (pre-completion) → return from escrow, no wallet touched
   platform revenue straight off the ledger.
 - Supersedes / absorbs the "Refunds & cancellation policy" row in §6.
 
+### Reports / views this ledger powers
+
+Once the ledger exists these become simple reads over `WalletTransaction`
+(each row carries `bookingId` + `type`), not new computation:
+
+- **Admin — per-booking payable:** for each booking, how much the platform owes
+  the technician (the `EARNING` share) — an "amounts to pay out" table.
+- **Technician — per-booking earned:** for each of their bookings, how much they
+  received (their `EARNING` row) — their own earnings breakdown.
+- **Admin — money summary:** total platform revenue earned (`PLATFORM_FEE`),
+  total paid out to technicians (`PAYOUT`), and outstanding (earned-but-unpaid =
+  sum of technician wallet balances).
+
+> Until §8 is built, the dashboard shows these as **derived reads** (recompute
+> `Σ COMPLETED amount × share` on each request) — no stored balances. The ledger
+> only becomes necessary when real payouts/withdrawals ship.
+
 ### Build order
 
 1. Prisma models + enums; `Booking.SETTLED`; `PLATFORM_FEE_PCT` config.
