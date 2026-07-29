@@ -7,7 +7,7 @@ export interface IStatData {
   changePercentage?: number;
 }
 
-export type TRevenueBucket = {
+export type TAmountBucket = {
   date: string;
   total: number;
 };

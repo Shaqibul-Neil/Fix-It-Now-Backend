@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
 
 const basicInfoSchema = z.object({
   phone: z
@@ -76,6 +77,40 @@ export const technicianIdParamSchema = z.object({
   params: z.object({ id: z.uuid("Invalid technician id") }),
 });
 
+// Admin list = all public list filter + new
+export const adminListTechniciansSchema = z.object({
+  query: listTechniciansSchema.shape.query.extend({
+    approvalStatus: z.enum(TTechnicianApprovalStatus).optional(),
+  }),
+});
+
+// Admin approves or rejects a submitted onboarding.
+export const reviewTechnicianSchema = z.object({
+  params: z.object({ id: z.uuid("Invalid technician id") }),
+  body: z
+    .object({
+      status: z.enum([
+        TTechnicianApprovalStatus.APPROVED,
+        TTechnicianApprovalStatus.REJECTED,
+      ]),
+      rejectionReason: z
+        .string()
+        .trim()
+        .min(10, "Rejection reason must be at least 10 characters")
+        .max(500, "Rejection reason cannot exceed 500 characters")
+        .optional(),
+    })
+    .refine(
+      (body) =>
+        body.status !== TTechnicianApprovalStatus.REJECTED ||
+        Boolean(body.rejectionReason),
+      {
+        message: "A reason is required when rejecting a technician.",
+        path: ["rejectionReason"],
+      },
+    ),
+});
+
 export type TListTechniciansQuery = z.infer<
   typeof listTechniciansSchema
 >["query"];
@@ -86,4 +121,12 @@ export type TCreateTechnicianProfilePayload = z.infer<
 
 export type TUpdateTechnicianProfilePayload = z.infer<
   typeof updateTechnicianProfileSchema
+>["body"];
+
+export type TAdminListTechniciansQuery = z.infer<
+  typeof adminListTechniciansSchema
+>["query"];
+
+export type TReviewTechnicianPayload = z.infer<
+  typeof reviewTechnicianSchema
 >["body"];

@@ -16,7 +16,7 @@ import {
   totalRevenue,
 } from "../stats.model";
 import {
-  bucketRevenueByInterval,
+  bucketAmountByInterval,
   buildMetrics,
   calculateRepeatRate,
   resolveComparison,
@@ -252,8 +252,8 @@ export class AdminStatsService {
     ]);
 
     // bucket EACH over its OWN range (both come out equal length)
-    const currentSeries = bucketRevenueByInterval(currentRows, current);
-    const previousSeries = bucketRevenueByInterval(previousRows, previous);
+    const currentSeries = bucketAmountByInterval(currentRows, current);
+    const previousSeries = bucketAmountByInterval(previousRows, previous);
 
     const result = zipRevenueSeries(currentSeries, previousSeries);
     return { result };

@@ -1,290 +1,312 @@
 import { prisma } from "../../src/lib/prisma";
-import { TDayOfWeek, TRole, TUserStatus } from "../../generated/prisma/enums";
+import {
+  TDayOfWeek,
+  TRole,
+  TTechnicianApprovalStatus,
+  TUserStatus,
+} from "../../generated/prisma/enums";
 import type { SeededCategories } from "./category.seed";
+import { LOCATIONS, STREETS } from "./locations";
+import { SERVICE_CATALOG } from "./service.catalog";
+import {
+  chance,
+  daysAgo,
+  makeAvatar,
+  makePhone,
+  pick,
+  pickMany,
+  randomInt,
+} from "./seed.helpers";
+
+export interface SeededService {
+  id: string;
+  price: number;
+  categoryName: string;
+}
 
 export interface SeededTech {
   userId: string;
   profileId: string;
-  services: {
-    id: string;
-    price: number;
-    categoryName: string;
-  }[];
+  fullName: string;
+  city: string;
+  area: string;
+  approvalStatus: TTechnicianApprovalStatus;
+  userStatus: TUserStatus;
+  services: SeededService[];
+}
+
+// ---------- how many of each bucket ----------
+const APPROVED_COUNT = 20; // publicly listed, own services and bookings
+const PENDING_COUNT = 20; // waiting in the admin review queue
+const REJECTED_COUNT = 3; // admin said no — one of them still has old services
+const BANNED_COUNT = 1; // approved technician whose account was later banned
+
+const TECH_NAMES: [string, string][] = [
+  // --- 20 APPROVED ---
+  ["Karim", "Mia"], ["Rahim", "Uddin"], ["Jamal", "Sheikh"], ["Sohel", "Rana"],
+  ["Faruk", "Ahmed"], ["Nazmul", "Haque"], ["Delwar", "Hossain"], ["Anwar", "Ali"],
+  ["Rubel", "Miah"], ["Shahin", "Alam"], ["Kamrul", "Islam"], ["Bappy", "Sarker"],
+  ["Milon", "Chowdhury"], ["Sattar", "Molla"], ["Jewel", "Rana"], ["Liton", "Das"],
+  ["Rony", "Barua"], ["Masud", "Karim"], ["Sumon", "Talukder"], ["Hanif", "Bepari"],
+  // --- 20 PENDING ---
+  ["Alamgir", "Kabir"], ["Tuhin", "Mahmud"], ["Rasel", "Sikder"], ["Palash", "Roy"],
+  ["Nayan", "Howlader"], ["Sabuj", "Gazi"], ["Ripon", "Mridha"], ["Selim", "Reza"],
+  ["Arif", "Sarkar"], ["Manik", "Pramanik"], ["Belal", "Munshi"], ["Robin", "Biswas"],
+  ["Shipon", "Akand"], ["Torikul", "Bhuiyan"], ["Zahirul", "Patwary"], ["Mamun", "Dewan"],
+  ["Firoz", "Khandaker"], ["Saiful", "Majumder"], ["Rakibul", "Sardar"], ["Nurul", "Fakir"],
+  // --- 3 REJECTED ---
+  ["Bashir", "Chowkidar"], ["Jasim", "Halder"], ["Iqbal", "Mistry"],
+  // --- 1 BANNED (was approved) ---
+  ["Babul", "Hossain"],
+];
+
+// Kept so the README / Postman logins that already exist keep working.
+const LEGACY_EMAILS = [
+  "karim.tech@fixitnow.com",
+  "rahim.tech@fixitnow.com",
+  "jamal.tech@fixitnow.com",
+  "sohel.tech@fixitnow.com",
+  "faruk.tech@fixitnow.com",
+];
+
+const REJECTION_REASONS = [
+  "Bio is too short and the experience claim could not be verified.",
+  "Uploaded phone number does not match the NID on record.",
+  "Service area is outside our current coverage. Reapply once we expand.",
+];
+
+const ALL_DAYS: TDayOfWeek[] = [
+  TDayOfWeek.SATURDAY,
+  TDayOfWeek.SUNDAY,
+  TDayOfWeek.MONDAY,
+  TDayOfWeek.TUESDAY,
+  TDayOfWeek.WEDNESDAY,
+  TDayOfWeek.THURSDAY,
+  TDayOfWeek.FRIDAY,
+];
+
+const SHIFTS: { start: string; end: string }[] = [
+  { start: "08:00", end: "16:00" },
+  { start: "09:00", end: "17:00" },
+  { start: "10:00", end: "18:00" },
+  { start: "14:00", end: "22:00" },
+];
+
+const BIO_TEMPLATES = [
+  (y: number, trade: string) => `${y} years of hands-on ${trade} work across Dhaka. Same-day service available.`,
+  (y: number, trade: string) => `Certified ${trade} technician with ${y} years on residential and small commercial jobs.`,
+  (y: number, trade: string) => `${trade} specialist. ${y} years in the field, 500+ jobs completed, warranty on every repair.`,
+  (y: number, trade: string) => `Independent ${trade} professional. ${y} years experience, transparent pricing, no hidden charges.`,
+];
+
+// Which bucket does technician `i` belong to?
+function bucketFor(index: number): {
+  approvalStatus: TTechnicianApprovalStatus;
+  userStatus: TUserStatus;
+} {
+  if (index < APPROVED_COUNT) {
+    return {
+      approvalStatus: TTechnicianApprovalStatus.APPROVED,
+      userStatus: TUserStatus.ACTIVE,
+    };
+  }
+  if (index < APPROVED_COUNT + PENDING_COUNT) {
+    return {
+      approvalStatus: TTechnicianApprovalStatus.PENDING,
+      userStatus: TUserStatus.ACTIVE,
+    };
+  }
+  if (index < APPROVED_COUNT + PENDING_COUNT + REJECTED_COUNT) {
+    return {
+      approvalStatus: TTechnicianApprovalStatus.REJECTED,
+      userStatus: TUserStatus.ACTIVE,
+    };
+  }
+  // A ban is an account action, not a review decision — the approval stays
+  // APPROVED so the two concerns never get confused in the admin UI.
+  return {
+    approvalStatus: TTechnicianApprovalStatus.APPROVED,
+    userStatus: TUserStatus.BANNED,
+  };
+}
+
+// How many services this technician publishes.
+function serviceCountFor(
+  index: number,
+  approvalStatus: TTechnicianApprovalStatus,
+  userStatus: TUserStatus,
+): number {
+  if (userStatus === TUserStatus.BANNED) return 1; // leftovers from before the ban
+  if (approvalStatus === TTechnicianApprovalStatus.APPROVED) {
+    return index < 10 ? 3 : 2; // 10*3 + 10*2 = 50 published services
+  }
+  // The first rejected technician was approved once and published two services
+  // before being rejected — this is what proves the public filters hide them.
+  if (approvalStatus === TTechnicianApprovalStatus.REJECTED) {
+    return index === APPROVED_COUNT + PENDING_COUNT ? 2 : 0;
+  }
+  return 0; // PENDING cannot publish — the API blocks it, so the seed matches
 }
 
 export async function seedTechnicians(
   categories: SeededCategories,
   passwordHash: string,
+  reviewerAdminId: string,
 ): Promise<SeededTech[]> {
-  const { plumbing, electrical, cleaning, painting } = categories;
-
-  // categoryId → name lookup (booking snapshot e categoryName lagbe)
-  const categoryNameById = new Map<string, string>([
-    [plumbing.id, plumbing.name],
-    [electrical.id, electrical.name],
-    [cleaning.id, cleaning.name],
-    [painting.id, painting.name],
-  ]);
-
-  const techSeed = [
-    {
-      firstName: "Karim",
-      lastName: "Mia",
-      email: "karim.tech@fixitnow.com",
-      phone: "01710000001",
-      bio: "10 yrs plumbing expert.",
-      experienceYears: 10,
-      hourlyRate: 500,
-      address: "Road 5, Dhanmondi",
-      city: "Dhaka",
-      area: "Dhanmondi",
-      status: TUserStatus.ACTIVE,
-      days: [
-        TDayOfWeek.SUNDAY,
-        TDayOfWeek.MONDAY,
-        TDayOfWeek.TUESDAY,
-        TDayOfWeek.WEDNESDAY,
-        TDayOfWeek.THURSDAY,
-      ],
-      services: [
-        {
-          title: "Pipe leak repair",
-          price: 800,
-          categoryId: plumbing.id,
-          estimatedDuration: 60,
-        },
-        {
-          title: "Basin fitting",
-          price: 1200,
-          categoryId: plumbing.id,
-          estimatedDuration: 90,
-        },
-      ],
-    },
-    {
-      firstName: "Rahim",
-      lastName: "Uddin",
-      email: "rahim.tech@fixitnow.com",
-      phone: "01710000002",
-      bio: "Certified electrician.",
-      experienceYears: 6,
-      hourlyRate: 600,
-      address: "Sector 7, Uttara",
-      city: "Dhaka",
-      area: "Uttara",
-      status: TUserStatus.ACTIVE,
-      days: [
-        TDayOfWeek.SUNDAY,
-        TDayOfWeek.MONDAY,
-        TDayOfWeek.TUESDAY,
-        TDayOfWeek.WEDNESDAY,
-        TDayOfWeek.THURSDAY,
-        TDayOfWeek.FRIDAY,
-      ],
-      services: [
-        {
-          title: "Ceiling fan install",
-          price: 700,
-          categoryId: electrical.id,
-          estimatedDuration: 45,
-        },
-        {
-          title: "Wiring fault fix",
-          price: 1500,
-          categoryId: electrical.id,
-          estimatedDuration: 120,
-        },
-      ],
-    },
-    {
-      firstName: "Jamal",
-      lastName: "Sheikh",
-      email: "jamal.tech@fixitnow.com",
-      phone: "01710000003",
-      bio: "Professional home cleaner.",
-      experienceYears: 4,
-      hourlyRate: 400,
-      address: "Road 11, Banani",
-      city: "Dhaka",
-      area: "Banani",
-      status: TUserStatus.ACTIVE,
-      days: [
-        TDayOfWeek.SUNDAY,
-        TDayOfWeek.MONDAY,
-        TDayOfWeek.TUESDAY,
-        TDayOfWeek.WEDNESDAY,
-        TDayOfWeek.THURSDAY,
-        TDayOfWeek.SATURDAY,
-      ],
-      services: [
-        {
-          title: "Home deep cleaning",
-          price: 2500,
-          categoryId: cleaning.id,
-          estimatedDuration: 180,
-        },
-        {
-          title: "Sofa cleaning",
-          price: 900,
-          categoryId: cleaning.id,
-          estimatedDuration: 60,
-        },
-      ],
-    },
-    {
-      firstName: "Sohel",
-      lastName: "Rana",
-      email: "sohel.tech@fixitnow.com",
-      phone: "01710000004",
-      bio: "Interior & exterior painter.",
-      experienceYears: 8,
-      hourlyRate: 550,
-      address: "Mirpur 10",
-      city: "Dhaka",
-      area: "Mirpur",
-      status: TUserStatus.ACTIVE,
-      days: [
-        TDayOfWeek.MONDAY,
-        TDayOfWeek.TUESDAY,
-        TDayOfWeek.WEDNESDAY,
-        TDayOfWeek.THURSDAY,
-        TDayOfWeek.SATURDAY,
-      ],
-      services: [
-        {
-          title: "Single room painting",
-          price: 3500,
-          categoryId: painting.id,
-          estimatedDuration: 240,
-        },
-        {
-          title: "Full apartment painting",
-          price: 12000,
-          categoryId: painting.id,
-          estimatedDuration: 600,
-        },
-      ],
-    },
-    {
-      firstName: "Faruk",
-      lastName: "Ahmed",
-      email: "faruk.tech@fixitnow.com",
-      phone: "01710000005",
-      bio: "Plumbing & water systems.",
-      experienceYears: 5,
-      hourlyRate: 480,
-      address: "Bashundhara Block C",
-      city: "Dhaka",
-      area: "Bashundhara",
-      status: TUserStatus.ACTIVE,
-      days: [
-        TDayOfWeek.FRIDAY,
-        TDayOfWeek.SATURDAY,
-        TDayOfWeek.SUNDAY,
-        TDayOfWeek.MONDAY,
-        TDayOfWeek.TUESDAY,
-      ],
-      services: [
-        {
-          title: "Water tank cleaning",
-          price: 1800,
-          categoryId: plumbing.id,
-          estimatedDuration: 120,
-        },
-        {
-          title: "Tap replacement",
-          price: 600,
-          categoryId: plumbing.id,
-          estimatedDuration: 30,
-        },
-      ],
-    },
-    {
-      // BANNED technician — services kept but inactive, no availability
-      firstName: "Babul",
-      lastName: "Hossain",
-      email: "babul.tech@fixitnow.com",
-      phone: "01710000006",
-      bio: "Electrician (account suspended).",
-      experienceYears: 3,
-      hourlyRate: 450,
-      address: "Jatrabari",
-      city: "Dhaka",
-      area: "Jatrabari",
-      status: TUserStatus.BANNED,
-      days: [] as TDayOfWeek[],
-      services: [
-        {
-          title: "Old wiring service",
-          price: 1000,
-          categoryId: electrical.id,
-          estimatedDuration: 60,
-          isActive: false,
-        },
-      ],
-    },
-  ];
-
   const technicians: SeededTech[] = [];
-  for (const t of techSeed) {
+  const totalCount =
+    APPROVED_COUNT + PENDING_COUNT + REJECTED_COUNT + BANNED_COUNT;
+
+  if (TECH_NAMES.length !== totalCount) {
+    throw new Error(
+      `Seed error: TECH_NAMES has ${TECH_NAMES.length} names but ${totalCount} technicians are configured`,
+    );
+  }
+
+  for (let i = 0; i < totalCount; i++) {
+    const [firstName, lastName] = pick(TECH_NAMES, i);
+    const fullName = `${firstName} ${lastName}`;
+    const location = pick(LOCATIONS, i % LOCATIONS.length);
+    const category = pick(categories.all, i % categories.all.length);
+    const { approvalStatus, userStatus } = bucketFor(i);
+
+    const experienceYears = randomInt(2, 15);
+    const bioTemplate = pick(BIO_TEMPLATES, i % BIO_TEMPLATES.length);
+
+    // Applied first, reviewed later — reviewedAt is always after createdAt.
+    const appliedDaysAgo = randomInt(20, 170);
+    const createdAt = daysAgo(appliedDaysAgo);
+    const isReviewed = approvalStatus !== TTechnicianApprovalStatus.PENDING;
+    const reviewedAt = isReviewed
+      ? daysAgo(Math.max(1, appliedDaysAgo - randomInt(1, 10)))
+      : null;
+
+    const isRejected = approvalStatus === TTechnicianApprovalStatus.REJECTED;
+
+    const email =
+      LEGACY_EMAILS[i] ?? `${firstName.toLowerCase()}${i}.tech@fixitnow.com`;
+
     const user = await prisma.user.create({
       data: {
-        firstName: t.firstName,
-        lastName: t.lastName,
-        email: t.email,
+        firstName,
+        lastName,
+        email,
         passwordHash,
         role: TRole.TECHNICIAN,
-        status: t.status,
+        status: userStatus,
+        createdAt,
+        lastLoginAt:
+          userStatus === TUserStatus.ACTIVE ? daysAgo(randomInt(0, 14)) : null,
         technicianProfile: {
           create: {
-            phone: t.phone,
-            bio: t.bio,
-            experienceYears: t.experienceYears,
-            hourlyRate: t.hourlyRate,
-            address: t.address,
-            city: t.city,
-            area: t.area,
+            phone: makePhone("0171", i + 1),
+            avatar: chance(70) ? makeAvatar(fullName) : null,
+            bio: bioTemplate(experienceYears, category.name.toLowerCase()),
+            experienceYears,
+            hourlyRate: randomInt(8, 16) * 50, // 400 – 800
+            address: `${pick(STREETS, i % STREETS.length)}, ${location.area}`,
+            city: location.city,
+            area: location.area,
+            serviceRadius: randomInt(3, 20),
             isProfileComplete: true,
-            isApproved: t.status === TUserStatus.ACTIVE,
+            // A technician can mark themselves unavailable without losing approval.
+            isAvailable:
+              approvalStatus === TTechnicianApprovalStatus.APPROVED
+                ? chance(85)
+                : false,
+            approvalStatus,
+            rejectionReason: isRejected
+              ? pick(REJECTION_REASONS, i % REJECTION_REASONS.length)
+              : null,
+            reviewedAt,
+            reviewedBy: isReviewed ? reviewerAdminId : null,
+            createdAt,
           },
         },
       },
       include: { technicianProfile: true },
     });
-    const profileId = user.technicianProfile!.id;
 
-    const services: SeededTech["services"] = [];
-    for (const s of t.services) {
+    const profile = user.technicianProfile;
+    if (!profile) {
+      throw new Error(`Seed error: technician profile missing for ${email}`);
+    }
+
+    // ---------- services ----------
+    const catalog = SERVICE_CATALOG[category.slug];
+    if (!catalog) {
+      throw new Error(`Seed error: no service catalog for "${category.slug}"`);
+    }
+
+    const wanted = serviceCountFor(i, approvalStatus, userStatus);
+    const chosen = pickMany(catalog, wanted, i); // offset keeps titles varied per tech
+    const services: SeededService[] = [];
+
+    for (const [serviceIndex, item] of chosen.entries()) {
       const created = await prisma.service.create({
         data: {
-          technicianId: profileId,
-          categoryId: s.categoryId,
-          title: s.title,
-          price: s.price,
-          estimatedDuration: s.estimatedDuration,
-          isActive: "isActive" in s ? s.isActive : true,
+          technicianId: profile.id,
+          categoryId: category.id,
+          title: item.title,
+          description: item.description,
+          price: item.price,
+          estimatedDuration: item.estimatedDuration,
+          // Turning a service off is the technician's own choice and has nothing
+          // to do with approval or bans. So a rejected/banned technician's rows
+          // deliberately stay ACTIVE here — only the public query filters may
+          // hide them, which is exactly what needs proving. Technician #9 keeps
+          // one genuinely switched-off service so the isActive filter is testable.
+          isActive: !(i === 9 && serviceIndex === 2),
+          createdAt: daysAgo(Math.max(1, appliedDaysAgo - randomInt(1, 15))),
         },
       });
       services.push({
         id: created.id,
-        price: s.price,
-        categoryName: categoryNameById.get(s.categoryId) ?? "Unknown",
+        price: item.price,
+        categoryName: category.name,
       });
     }
 
-    if (t.days.length > 0) {
+    // ---------- availability ----------
+    // Only technicians who can actually be booked publish a weekly schedule.
+    if (approvalStatus === TTechnicianApprovalStatus.APPROVED && userStatus === TUserStatus.ACTIVE) {
+      const shift = pick(SHIFTS, i % SHIFTS.length);
+      const workingDays = pickMany(ALL_DAYS, randomInt(4, 6), i % ALL_DAYS.length);
+
       await prisma.availabilitySlot.createMany({
-        data: t.days.map((d) => ({
-          technicianId: profileId,
-          dayOfWeek: d,
-          startTime: "09:00",
-          endTime: "17:00",
+        data: workingDays.map((day, dayIndex) => ({
+          technicianId: profile.id,
+          dayOfWeek: day,
+          startTime: shift.start,
+          endTime: shift.end,
+          // one technician in five has a single day switched off
+          isActive: !(i % 5 === 0 && dayIndex === 0),
         })),
+        skipDuplicates: true,
       });
     }
 
-    technicians.push({ userId: user.id, profileId, services });
+    technicians.push({
+      userId: user.id,
+      profileId: profile.id,
+      fullName,
+      city: location.city,
+      area: location.area,
+      approvalStatus,
+      userStatus,
+      services,
+    });
   }
 
   return technicians;
+}
+
+// Only these can receive bookings — approved, active, and actually selling something.
+export function bookableTechnicians(technicians: SeededTech[]): SeededTech[] {
+  return technicians.filter(
+    (t) =>
+      t.approvalStatus === TTechnicianApprovalStatus.APPROVED &&
+      t.userStatus === TUserStatus.ACTIVE &&
+      t.services.length > 0,
+  );
 }

@@ -11,7 +11,11 @@ import { AppError } from "../../../utils/appError";
 import { jwtToken } from "../../../utils/jwt";
 import { createFullName } from "../../../utils/utils";
 import { notifyUserRegistered } from "../notification/notification.events";
-import { AUTH_CURRENT_USER_SELECT, AUTH_REFRESH_SELECT } from "./auth.include";
+import {
+  AUTH_CURRENT_USER_SELECT,
+  AUTH_REFRESH_SELECT,
+  AUTH_ME_SELECT,
+} from "./auth.include";
 
 export class AuthService {
   //--------------Register-------------
@@ -143,6 +147,29 @@ export class AuthService {
       select: AUTH_CURRENT_USER_SELECT,
     });
     return user;
+  }
+
+  //----------Me (current user + onboarding state)--------
+  async getMe(userId: string) {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: AUTH_ME_SELECT,
+    });
+
+    const { technicianProfile, ...safeUser } = user;
+    const isTechnician = safeUser.role === TRole.TECHNICIAN;
+
+    return {
+      ...safeUser,
+      // Customers and admins never onboard, so they are complete by definition.
+      isOnboarded:
+        !isTechnician || Boolean(technicianProfile?.isProfileComplete),
+      // Approval only exists for technicians — the keys are absent for other roles.
+      ...(isTechnician && {
+        approvalStatus: technicianProfile?.approvalStatus ?? null,
+        rejectionReason: technicianProfile?.rejectionReason ?? null,
+      }),
+    };
   }
 }
 

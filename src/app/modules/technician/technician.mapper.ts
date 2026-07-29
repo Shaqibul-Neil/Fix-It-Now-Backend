@@ -1,5 +1,6 @@
 import type { Prisma } from "../../../../generated/prisma/client";
 import type {
+  ADMIN_TECHNICIAN_LIST_SELECT,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
 } from "./technician.include";
@@ -39,6 +40,8 @@ export const technicianDetailsMapper = (
   area: technician.area,
   averageRating: technician.averageRating,
   totalReviews: technician.totalReviews,
+  approvalStatus: technician.approvalStatus,
+  rejectionReason: technician.rejectionReason,
   services: technician.services.map((service) => ({
     id: service.id,
     title: service.title,
@@ -47,3 +50,22 @@ export const technicianDetailsMapper = (
   })),
   reviews: technician.reviews,
 });
+
+// admin table row — approval state + contact + completed jobs on top of the list row
+export const technicianAdminListMapper = (
+  technician: Prisma.TechnicianProfileGetPayload<{
+    select: typeof ADMIN_TECHNICIAN_LIST_SELECT;
+  }>,
+) => {
+  const { _count, ...rest } = technician;
+
+  return {
+    ...technicianListMapper(rest),
+    phone: technician.phone,
+    approvalStatus: technician.approvalStatus,
+    rejectionReason: technician.rejectionReason,
+    reviewedAt: technician.reviewedAt,
+    appliedAt: technician.createdAt,
+    completedJobs: _count.bookings,
+  };
+};

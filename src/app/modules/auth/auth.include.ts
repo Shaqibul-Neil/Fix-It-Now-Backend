@@ -17,3 +17,16 @@ export const AUTH_CURRENT_USER_SELECT = {
   role: true,
   status: true,
 } as const satisfies Prisma.UserSelect;
+
+// /auth/me only — the dashboard needs to know if onboarding is still pending.
+export const AUTH_ME_SELECT = {
+  ...AUTH_CURRENT_USER_SELECT,
+  technicianProfile: {
+    select: {
+      id: true,
+      isProfileComplete: true,
+      approvalStatus: true,
+      rejectionReason: true,
+    },
+  },
+} as const satisfies Prisma.UserSelect;

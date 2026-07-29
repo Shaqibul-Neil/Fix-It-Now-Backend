@@ -10,7 +10,7 @@ import {
   pickInterval,
   weekBucketKey,
 } from "../../../utils/utils";
-import type { IStatData, TMetricType, TRevenueBucket } from "./stats.interface";
+import type { IStatData, TMetricType, TAmountBucket } from "./stats.interface";
 import type { TStatsPeriodQuery } from "./stats.validation";
 
 //metrics data with month over month comparison
@@ -104,10 +104,10 @@ export const shapeByCategory = (
 };
 
 // Group payments into per-day revenue totals, zero-filling days with no sales.
-export const bucketRevenueByInterval = (
-  rows: { paidAt: Date; amount: Prisma.Decimal }[],
+export const bucketAmountByInterval = (
+  rows: { date: Date; amount: Prisma.Decimal }[],
   range: TRange,
-): TRevenueBucket[] => {
+): TAmountBucket[] => {
   const interval = pickInterval(range);
 
   /**
@@ -119,11 +119,11 @@ export const bucketRevenueByInterval = (
     let key: string;
 
     if (interval === "day") {
-      key = dayBucketKey(row.paidAt);
+      key = dayBucketKey(row.date);
     } else if (interval === "week") {
-      key = weekBucketKey(row.paidAt, range);
+      key = weekBucketKey(row.date, range);
     } else {
-      key = monthBucketKey(row.paidAt);
+      key = monthBucketKey(row.date);
     }
     acc[key] = (acc[key] ?? 0) + row.amount.toNumber();
 
@@ -142,8 +142,8 @@ export const bucketRevenueByInterval = (
 
 // Overlay two equal-length daily arrays by index (period-over-period).
 export const zipRevenueSeries = (
-  current: TRevenueBucket[],
-  previous: TRevenueBucket[],
+  current: TAmountBucket[],
+  previous: TAmountBucket[],
 ): { date: string; current: number; previous: number }[] => {
   return current.map((day, i) => ({
     date: day.date,

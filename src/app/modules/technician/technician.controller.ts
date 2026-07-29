@@ -6,11 +6,14 @@ import {
   type TechnicianService,
 } from "./technician.service";
 import type {
+  TAdminListTechniciansQuery,
   TCreateTechnicianProfilePayload,
   TListTechniciansQuery,
+  TReviewTechnicianPayload,
   TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
 import { sendResponse } from "../../../utils/sendResponse";
+import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
 
 class TechnicianController {
   constructor(private technicianService: TechnicianService) {}
@@ -94,7 +97,7 @@ class TechnicianController {
   //--------------Admin: technician list-------------
   getAllTechniciansForAdmin = asyncHandler(
     async (req: TRequest, res: TResponse) => {
-      const query = req.query as TListTechniciansQuery;
+      const query = req.query as TAdminListTechniciansQuery;
       const { items, meta } =
         await this.technicianService.getAllTechniciansForAdmin(query);
       sendResponse({
@@ -123,6 +126,27 @@ class TechnicianController {
       });
     },
   );
+
+  //--------------Admin: approve / reject technician-------------
+  reviewTechnician = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const payload = req.body as TReviewTechnicianPayload;
+    const profile = await this.technicianService.reviewTechnician(
+      req.user.id,
+      req.params.id as string,
+      payload,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message:
+        payload.status === TTechnicianApprovalStatus.APPROVED
+          ? "Technician approved successfully"
+          : "Technician rejected successfully",
+      data: profile,
+    });
+  });
 }
 
 export const technicianController = new TechnicianController(technicianService);

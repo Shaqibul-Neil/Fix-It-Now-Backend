@@ -3,6 +3,9 @@ export const servicePaths = {
     get: {
       tags: ["Services"],
       summary: "Public: list services",
+      description:
+        "A service is only listed if it is active, its technician was approved by an admin, " +
+        "and that technician's account is not banned.",
       parameters: [
         { name: "category", in: "query", required: false, schema: { type: "string" }, description: "Category slug." },
         { name: "city", in: "query", required: false, schema: { type: "string" } },
@@ -75,6 +78,48 @@ export const servicePaths = {
         "403": { $ref: "#/components/responses/Forbidden" },
         "404": { $ref: "#/components/responses/NotFound" },
         "409": { $ref: "#/components/responses/Conflict" },
+      },
+    },
+  },
+
+  // ---------------- Admin ----------------
+  "/services/admin/list": {
+    get: {
+      tags: ["Services"],
+      summary: "Admin: list every service",
+      description:
+        "Same search filters as the public list but with no gates: inactive services and services " +
+        "owned by pending, rejected or banned technicians are all returned. That is the point — " +
+        "the admin moderates exactly what customers cannot see.",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        { name: "category", in: "query", required: false, schema: { type: "string" }, description: "Category slug." },
+        { name: "city", in: "query", required: false, schema: { type: "string" } },
+        { name: "area", in: "query", required: false, schema: { type: "string" } },
+        { name: "minRating", in: "query", required: false, schema: { type: "number", minimum: 0, maximum: 5 } },
+        { name: "search", in: "query", required: false, schema: { type: "string" } },
+        { $ref: "#/components/parameters/PageParam" },
+        { $ref: "#/components/parameters/LimitParam" },
+      ],
+      responses: {
+        "200": { description: "Paginated service list with booking counts." },
+        "400": { $ref: "#/components/responses/ValidationError" },
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "403": { $ref: "#/components/responses/Forbidden" },
+      },
+    },
+  },
+  "/services/admin/{id}": {
+    get: {
+      tags: ["Services"],
+      summary: "Admin: service details + booking breakdown",
+      security: [{ bearerAuth: [] }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      responses: {
+        "200": { description: "Service details with `bookingsByStatus`." },
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "403": { $ref: "#/components/responses/Forbidden" },
+        "404": { $ref: "#/components/responses/NotFound" },
       },
     },
   },

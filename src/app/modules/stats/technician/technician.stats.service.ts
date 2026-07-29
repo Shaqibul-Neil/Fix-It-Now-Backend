@@ -1,7 +1,4 @@
-import {
-  TBookingStatus,
-  type Prisma,
-} from "../../../../../generated/prisma/client";
+import { TBookingStatus } from "../../../../../generated/prisma/client";
 import config from "../../../../config";
 import { calculatePercentage } from "../../../../utils/utils";
 import { TECHNICIAN_BOOKING_LIST_SELECT } from "../../booking/booking.include";
@@ -16,7 +13,7 @@ import {
   totalBooking,
 } from "../stats.model";
 import {
-  bucketRevenueByInterval,
+  bucketAmountByInterval,
   buildMetrics,
   resolveComparison,
   resolveRange,
@@ -279,21 +276,9 @@ export class TechnicianStatsService {
       }),
     ]);
 
-    // bucket util reads `paidAt`; completed bookings carry `completedAt` (non-null here)
-    const toBucketRows = (
-      rows: { completedAt: Date | null; amount: Prisma.Decimal }[],
-    ) => rows.map((r) => ({ paidAt: r.completedAt as Date, amount: r.amount }));
+    const currentSeries = bucketAmountByInterval(currentRows, current);
+    const previousSeries = bucketAmountByInterval(previousRows, previous);
 
-    const currentSeries = bucketRevenueByInterval(
-      toBucketRows(currentRows),
-      current,
-    );
-    const previousSeries = bucketRevenueByInterval(
-      toBucketRows(previousRows),
-      previous,
-    );
-
-    // buckets hold full booking totals
     const share = config.technician_share;
     const result = zipRevenueSeries(currentSeries, previousSeries).map((d) => ({
       date: d.date,

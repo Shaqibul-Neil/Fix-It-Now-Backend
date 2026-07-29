@@ -31,6 +31,8 @@ export const TECHNICIAN_DETAILS_SELECT = {
   area: true,
   averageRating: true,
   totalReviews: true,
+  approvalStatus: true,
+  rejectionReason: true,
   users: {
     select: {
       firstName: true,
@@ -94,6 +96,11 @@ export const TECHNICIAN_MY_PROFILE_INCLUDE = {
 // admin table: summary + completed-jobs count
 export const ADMIN_TECHNICIAN_LIST_SELECT = {
   ...TECHNICIAN_LIST_SELECT,
+  phone: true,
+  approvalStatus: true,
+  rejectionReason: true,
+  reviewedAt: true,
+  createdAt: true,
   _count: {
     select: { bookings: { where: { status: TBookingStatus.COMPLETED } } },
   },

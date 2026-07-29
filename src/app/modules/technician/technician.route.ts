@@ -4,8 +4,10 @@ import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { technicianController } from "./technician.controller";
 import {
+  adminListTechniciansSchema,
   createTechnicianProfileSchema,
   listTechniciansSchema,
+  reviewTechnicianSchema,
   technicianIdParamSchema,
   updateTechnicianProfileSchema,
 } from "./technician.validation";
@@ -59,7 +61,7 @@ export const technicianRoute: TRouteModule = {
       path: "/admin/list",
       middlewares: roleRoute(
         [TRole.ADMIN],
-        validateRequest(listTechniciansSchema),
+        validateRequest(adminListTechniciansSchema),
       ),
       handler: technicianController.getAllTechniciansForAdmin,
     },
@@ -71,6 +73,15 @@ export const technicianRoute: TRouteModule = {
         validateRequest(technicianIdParamSchema),
       ),
       handler: technicianController.getTechnicianByIdForAdmin,
+    },
+    {
+      method: "patch",
+      path: "/admin/:id/approval",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(reviewTechnicianSchema),
+      ),
+      handler: technicianController.reviewTechnician,
     },
   ],
 };

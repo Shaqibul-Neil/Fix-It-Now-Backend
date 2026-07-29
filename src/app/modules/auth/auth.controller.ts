@@ -79,7 +79,7 @@ class AuthController {
 
   //----------Current User (me)---------
   getMe = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const user = await this.authService.currentUser(req.user.id);
+    const user = await this.authService.getMe(req.user.id);
 
     sendResponse({
       res,

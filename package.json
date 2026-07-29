@@ -43,6 +43,7 @@
     "slugify": "^1.6.9",
     "swagger-ui-express": "^5.0.1",
     "tsup": "^8.5.1",
+    "vercel": "^58.1.0",
     "zod": "^4.4.3"
   }
 }

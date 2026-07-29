@@ -9,8 +9,13 @@ import type {
 const forAdmins = async (
   payload: INotifyPayload,
 ): Promise<INotifyRecipient[]> => {
-  const adminIds = await getAdminIds();
-  return adminIds.map((id) => ({ userId: id, ...payload }));
+  try {
+    const adminIds = await getAdminIds();
+    return adminIds.map((id) => ({ userId: id, ...payload }));
+  } catch (error) {
+    console.error("[notification] getAdminIds failed:", error);
+    return [];
+  }
 };
 
 // ---------- BOOKING NOTIFICATIONS----------
@@ -346,6 +351,32 @@ export const notifyTechnicianProfileUpdated = async (
   });
 
   await tryNotifyMany(adminNotifications);
+};
+
+// Admin approves the onboarding → Technician
+export const notifyTechnicianApproved = async (
+  technicianUserId: string,
+): Promise<void> => {
+  await tryNotifyUser(technicianUserId, {
+    type: TNotificationType.TECHNICIAN_APPROVED,
+    title: "Profile approved",
+    message:
+      "Your profile has been approved. You can now publish services and take bookings.",
+    data: { target: "user", userId: technicianUserId },
+  });
+};
+
+// Admin rejects the onboarding → Technician
+export const notifyTechnicianRejected = async (
+  technicianUserId: string,
+  reason: string,
+): Promise<void> => {
+  await tryNotifyUser(technicianUserId, {
+    type: TNotificationType.TECHNICIAN_REJECTED,
+    title: "Profile rejected",
+    message: `Your profile was rejected. Reason: ${reason}`,
+    data: { target: "user", userId: technicianUserId },
+  });
 };
 
 // ---------- AVAILABILITY NOTIFICATIONS----------

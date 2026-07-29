@@ -1,12 +1,18 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
-import { seedAdmin } from "./seeds/admin.seed";
+import { seedAdmins } from "./seeds/admin.seed";
 import { seedCategories } from "./seeds/category.seed";
-import { seedTechnicians } from "./seeds/technician.seed";
+import { seedTechnicians, bookableTechnicians } from "./seeds/technician.seed";
 import { seedCustomers } from "./seeds/customer.seed";
 import { seedBookings } from "./seeds/booking.seed";
 import { seedPayments } from "./seeds/payment.seed";
 import { seedReviews } from "./seeds/review.seed";
+import { seedNotifications } from "./seeds/notification.seed";
+import { resetRandom } from "./seeds/seed.helpers";
+import {
+  TBookingStatus,
+  TTechnicianApprovalStatus,
+} from "../generated/prisma/enums";
 
 const PASSWORD = "Password123!"; // same login password for EVERY seeded user (incl. admin)
 
@@ -26,26 +32,96 @@ async function resetDatabase() {
 }
 
 async function main() {
+  // Fixed PRNG seed → the same rows every run, so screenshots and manual test
+  // notes stay valid after a re-seed.
+  resetRandom();
+
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
+  console.log("🧹 Resetting database...");
   await resetDatabase();
 
-  await seedAdmin(passwordHash);
+  console.log("👤 Seeding admins...");
+  const admins = await seedAdmins(passwordHash);
+
+  console.log("🗂️  Seeding categories...");
   const categories = await seedCategories();
-  const technicians = await seedTechnicians(categories, passwordHash);
+
+  console.log("🔧 Seeding technicians + services + availability...");
+  const technicians = await seedTechnicians(
+    categories,
+    passwordHash,
+    admins.primaryId,
+  );
+
+  console.log("🙋 Seeding customers...");
   const customers = await seedCustomers(passwordHash);
+
+  console.log("📅 Seeding bookings + status history...");
   const bookings = await seedBookings(technicians, customers);
+
+  console.log("💳 Seeding payments...");
   const paymentCount = await seedPayments(bookings);
+
+  console.log("⭐ Seeding reviews...");
   const reviewCount = await seedReviews(bookings, technicians);
 
-  console.log("✅ Seed complete.");
-  console.log(`   Login password for ALL users: ${PASSWORD}`);
-  console.log("   Admin:      admin@fixitnow.com");
-  console.log("   Technician: karim.tech@fixitnow.com (+5 more, 1 BANNED)");
-  console.log("   Customer:   nadia.cust@fixitnow.com (+5 more, 1 BANNED)");
-  console.log(
-    `   Bookings: ${bookings.length}, Payments: ${paymentCount}, Reviews: ${reviewCount}`,
+  console.log("🔔 Seeding notifications...");
+  const notificationCount = await seedNotifications(
+    bookings,
+    technicians,
+    admins,
   );
+
+  // ---------- summary ----------
+  const approved = technicians.filter(
+    (t) => t.approvalStatus === TTechnicianApprovalStatus.APPROVED,
+  ).length;
+  const pending = technicians.filter(
+    (t) => t.approvalStatus === TTechnicianApprovalStatus.PENDING,
+  ).length;
+  const rejected = technicians.filter(
+    (t) => t.approvalStatus === TTechnicianApprovalStatus.REJECTED,
+  ).length;
+  const serviceCount = technicians.reduce(
+    (sum, t) => sum + t.services.length,
+    0,
+  );
+
+  const byStatus = Object.values(TBookingStatus)
+    .map((status) => {
+      const count = bookings.filter((b) => b.status === status).length;
+      return `${status}=${count}`;
+    })
+    .join("  ");
+
+  const bookable = bookableTechnicians(technicians);
+  const perTech = bookable.map(
+    (t) => bookings.filter((b) => b.technicianId === t.profileId).length,
+  );
+  const minPerTech = Math.min(...perTech);
+
+  console.log("\n✅ Seed complete.\n");
+  console.log(`   Login password for ALL users : ${PASSWORD}`);
+  console.log("   Admin      : admin@fixitnow.com  |  moderator@fixitnow.com");
+  console.log("   Technician : karim.tech@fixitnow.com   (APPROVED)");
+  console.log("   Technician : alamgir20.tech@fixitnow.com (PENDING review)");
+  console.log("   Technician : bashir40.tech@fixitnow.com  (REJECTED)");
+  console.log("   Customer   : nadia.cust@fixitnow.com");
+  console.log("");
+  console.log(`   Categories    : ${categories.all.length} active (+1 inactive)`);
+  console.log(
+    `   Technicians   : ${technicians.length}  (approved=${approved}  pending=${pending}  rejected=${rejected})`,
+  );
+  console.log(`   Services      : ${serviceCount}`);
+  console.log(`   Customers     : ${customers.length}`);
+  console.log(
+    `   Bookings      : ${bookings.length}  (min ${minPerTech} per approved technician)`,
+  );
+  console.log(`   ${byStatus}`);
+  console.log(`   Payments      : ${paymentCount}`);
+  console.log(`   Reviews       : ${reviewCount}`);
+  console.log(`   Notifications : ${notificationCount}`);
 }
 
 main()

@@ -54,11 +54,25 @@ export const getAllCategoryNames = async (): Promise<string[]> => {
 
 //get all payments
 export const getPaymentsInRange = async (where: Prisma.PaymentWhereInput) => {
-  return prisma.payment.findMany({
+  const rows = await prisma.payment.findMany({
     where,
     select: { paidAt: true, amount: true },
     orderBy: { paidAt: "asc" },
   });
+  return rows.map((r) => ({ date: r.paidAt as Date, amount: r.amount }));
+};
+
+// Completed bookings in a range
+export const getCompletedBookingsInRange = async (
+  where: Prisma.BookingWhereInput,
+) => {
+  const rows = await prisma.booking.findMany({
+    where,
+    select: { completedAt: true, amount: true },
+    orderBy: { completedAt: "asc" },
+  });
+
+  return rows.map((r) => ({ date: r.completedAt as Date, amount: r.amount }));
 };
 
 //get last 5 booking based on where
@@ -101,15 +115,4 @@ export const getTechnicianAverageRating = async (
     select: { averageRating: true },
   });
   return Number(profile?.averageRating ?? 0);
-};
-
-// Completed bookings in a range
-export const getCompletedBookingsInRange = async (
-  where: Prisma.BookingWhereInput,
-) => {
-  return prisma.booking.findMany({
-    where,
-    select: { completedAt: true, amount: true },
-    orderBy: { completedAt: "asc" },
-  });
 };

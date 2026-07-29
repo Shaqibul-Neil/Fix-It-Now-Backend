@@ -2,37 +2,48 @@ import { prisma } from "../../src/lib/prisma";
 import { TReviewStatus } from "../../generated/prisma/enums";
 import type { SeededBooking } from "./booking.seed";
 import type { SeededTech } from "./technician.seed";
+import { HOUR, inBatches, randomInt } from "./seed.helpers";
 
 export async function seedReviews(
   bookings: SeededBooking[],
   technicians: SeededTech[],
 ): Promise<number> {
-  let count = 0;
+  const rows = bookings
+    .filter((b) => b.review !== undefined)
+    .map((b) => {
+      // Non-null: the filter above already dropped the unreviewed bookings.
+      const spec = b.review!;
 
-  for (const b of bookings) {
-    if (!b.review) continue;
-    count++;
+      // A review is written a few hours to a couple of days after the job ends.
+      const writtenAt = new Date(
+        (b.completedAt ?? b.scheduledAt).getTime() + randomInt(2, 48) * HOUR,
+      );
 
-    await prisma.review.create({
-      data: {
+      return {
         bookingId: b.id,
         customerId: b.customerId,
         technicianId: b.technicianId,
         serviceId: b.serviceId,
-        rating: b.review.rating,
-        comment: b.review.comment,
-        status: b.review.status,
-      },
+        rating: spec.rating,
+        comment: spec.comment,
+        status: spec.status,
+        createdAt: writtenAt,
+      };
     });
-  }
 
-  // Recompute technician rating from PUBLISHED reviews only.
+  await inBatches(rows, 300, (chunk) =>
+    prisma.review.createMany({ data: chunk }),
+  );
+
+  // Recompute the cached rating from PUBLISHED reviews only — hidden, rejected
+  // and not-yet-moderated reviews must not move a technician's public score.
   for (const tech of technicians) {
     const agg = await prisma.review.aggregate({
       where: { technicianId: tech.profileId, status: TReviewStatus.PUBLISHED },
       _avg: { rating: true },
       _count: true,
     });
+
     await prisma.technicianProfile.update({
       where: { id: tech.profileId },
       data: {
@@ -42,5 +53,5 @@ export async function seedReviews(
     });
   }
 
-  return count;
+  return rows.length;
 }

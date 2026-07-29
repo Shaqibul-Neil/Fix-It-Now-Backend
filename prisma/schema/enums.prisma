@@ -9,6 +9,12 @@ enum TUserStatus {
   BANNED
 }
 
+enum TTechnicianApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum TBookingStatus {
   REQUESTED
   ACCEPTED
@@ -51,6 +57,8 @@ enum TReviewStatus {
 enum TNotificationType {
   TECHNICIAN_ONBOARDED
   TECHNICIAN_PROFILE_UPDATED
+  TECHNICIAN_APPROVED
+  TECHNICIAN_REJECTED
 
   SERVICE_CREATED
   SERVICE_UPDATED

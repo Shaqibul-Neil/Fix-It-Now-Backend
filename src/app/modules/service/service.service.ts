@@ -1,7 +1,10 @@
 import httpStatus from "http-status";
 import { Prisma, TRole } from "../../../../generated/prisma/client";
 import { AppError } from "../../../utils/appError";
-import { findTechnicianProfileByUserId } from "../technician/technician.model";
+import {
+  findApprovedTechnicianProfile,
+  findTechnicianProfileByUserId,
+} from "../technician/technician.model";
 import type {
   TCreateServicePayload,
   TListServicesQuery,
@@ -13,7 +16,11 @@ import {
   ensureNotEmptyObject,
   getPagination,
 } from "../../../utils/utils";
-import { buildMyServiceFilter, buildServiceFilter } from "./service.utils";
+import {
+  buildAdminServiceFilter,
+  buildMyServiceFilter,
+  buildServiceFilter,
+} from "./service.utils";
 import {
   notifyServiceCreated,
   notifyServiceUpdated,
@@ -72,8 +79,8 @@ export class ServiceService {
   //-------------TECHNICIAN ACTIONS----------
   //--------------Create Service-------------
   async createService(userId: string, payload: TCreateServicePayload) {
-    //get the technician profile
-    const technician = await findTechnicianProfileByUserId(userId);
+    //get the approved technician profile
+    const technician = await findApprovedTechnicianProfile(userId);
 
     //get the category
     await this.isCategoryExist(payload.categoryId);
@@ -109,7 +116,7 @@ export class ServiceService {
     payload: TUpdateServicePayload,
   ) {
     //get the technician profile
-    const technician = await findTechnicianProfileByUserId(userId);
+    const technician = await findApprovedTechnicianProfile(userId);
 
     //get the service
     const service = await this.isServiceExist(
@@ -237,7 +244,7 @@ export class ServiceService {
   //------------------ADMIN: service list + booking count-----------------
   async getAllServicesForAdmin(query: TListServicesQuery) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
-    const where = buildServiceFilter(query);
+    const where = buildAdminServiceFilter(query);
 
     const [items, total] = await prisma.$transaction([
       prisma.service.findMany({

@@ -20,7 +20,7 @@ const config = {
     },
     refresh: {
       secret: env.JWT_REFRESH_TOKEN_SECRET as string,
-      expires_in: (env.JWT_REFRESH_EXPIRY as string) ?? "7d",
+      expires_in: (env.JWT_REFRESH_EXPIRY as string) ?? "30d",
     },
   },
   ssl: {
