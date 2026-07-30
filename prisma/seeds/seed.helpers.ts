@@ -2,10 +2,11 @@
 // Everything random here is DETERMINISTIC — the same `npm run seed` run twice
 // produces the same rows, so screenshots/tests stay stable.
 
-const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-export { HOUR, DAY };
+export { MINUTE, HOUR, DAY };
 
 // mulberry32 — tiny seeded PRNG. Fixed seed = repeatable data.
 let rngState = 0x9e3779b9;

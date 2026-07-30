@@ -6,6 +6,7 @@ import { reviewService, type ReviewService } from "./review.service";
 import type {
   TCreateReviewPayload,
   TListReviewQuery,
+  TPublicReviewQuery,
   TUpdateReviewPayload,
   TUpdateReviewStatusPayload,
 } from "./review.validation";
@@ -91,7 +92,7 @@ class ReviewController {
   //-------------PUBLIC ACTIONS----------
   getTechnicianReviews = asyncHandler(async (req: TRequest, res: TResponse) => {
     const technicianId = req.params.id as string;
-    const query = req.query as TListReviewQuery;
+    const query = req.query as TPublicReviewQuery;
     const { items, meta } = await this.reviewService.getTechnicianReviews(
       technicianId,
       query,

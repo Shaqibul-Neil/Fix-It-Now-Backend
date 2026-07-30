@@ -11,6 +11,7 @@ import { seedNotifications } from "./seeds/notification.seed";
 import { resetRandom } from "./seeds/seed.helpers";
 import {
   TBookingStatus,
+  TPaymentStatus,
   TTechnicianApprovalStatus,
 } from "../generated/prisma/enums";
 
@@ -61,7 +62,7 @@ async function main() {
   const bookings = await seedBookings(technicians, customers);
 
   console.log("💳 Seeding payments...");
-  const paymentCount = await seedPayments(bookings);
+  const payments = await seedPayments(bookings);
 
   console.log("⭐ Seeding reviews...");
   const reviewCount = await seedReviews(bookings, technicians);
@@ -95,6 +96,10 @@ async function main() {
     })
     .join("  ");
 
+  const paymentsByStatus = Object.values(TPaymentStatus)
+    .map((status) => `${status}=${payments.byStatus[status]}`)
+    .join("  ");
+
   const bookable = bookableTechnicians(technicians);
   const perTech = bookable.map(
     (t) => bookings.filter((b) => b.technicianId === t.profileId).length,
@@ -119,7 +124,8 @@ async function main() {
     `   Bookings      : ${bookings.length}  (min ${minPerTech} per approved technician)`,
   );
   console.log(`   ${byStatus}`);
-  console.log(`   Payments      : ${paymentCount}`);
+  console.log(`   Payments      : ${payments.total}`);
+  console.log(`   ${paymentsByStatus}`);
   console.log(`   Reviews       : ${reviewCount}`);
   console.log(`   Notifications : ${notificationCount}`);
 }

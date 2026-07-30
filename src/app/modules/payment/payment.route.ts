@@ -4,6 +4,7 @@ import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { paymentController } from "./payment.controller";
 import {
+  adminListPaymentsSchema,
   createPaymentSchema,
   listPaymentsSchema,
   paymentIdParamSchema,
@@ -48,7 +49,7 @@ export const paymentRoute: TRouteModule = {
       path: "/admin/payments",
       middlewares: roleRoute(
         [TRole.ADMIN],
-        validateRequest(listPaymentsSchema),
+        validateRequest(adminListPaymentsSchema),
       ),
       handler: paymentController.getAllPayments,
     },

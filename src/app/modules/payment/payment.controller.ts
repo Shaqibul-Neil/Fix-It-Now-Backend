@@ -5,6 +5,7 @@ import { sendResponse } from "../../../utils/sendResponse";
 import config from "../../../config";
 import { paymentService, type PaymentService } from "./payment.service";
 import type {
+  TAdminListPaymentsQuery,
   TCreatePaymentPayload,
   TListPaymentsQuery,
 } from "./payment.validation";
@@ -103,7 +104,7 @@ class PaymentController {
 
   //-------------ADMIN ACTIONS----------
   getAllPayments = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const query = req.query as TListPaymentsQuery;
+    const query = req.query as TAdminListPaymentsQuery;
     const { items, meta } = await this.paymentService.getAllPaymentLists(query);
 
     sendResponse({

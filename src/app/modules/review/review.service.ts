@@ -12,6 +12,8 @@ import {
   TBookingStatus,
   TReviewStatus,
   TRole,
+  TTechnicianApprovalStatus,
+  TUserStatus,
 } from "../../../../generated/prisma/enums";
 import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
 import {
@@ -183,7 +185,14 @@ export class ReviewService {
   //--------------Technician's Review-------------
   async getTechnicianReviews(technicianId: string, query: TPublicReviewQuery) {
     return this.reviewLists(
-      { technicianId, status: TReviewStatus.PUBLISHED },
+      {
+        technicianId,
+        status: TReviewStatus.PUBLISHED,
+        technician: {
+          approvalStatus: TTechnicianApprovalStatus.APPROVED,
+          users: { status: TUserStatus.ACTIVE },
+        },
+      },
       query,
     );
   }

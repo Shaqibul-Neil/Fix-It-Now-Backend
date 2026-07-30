@@ -16,9 +16,14 @@ import {
 } from "./payment.utils";
 import config from "../../../config";
 import { TRole, type Prisma } from "../../../../generated/prisma/client";
-import type { TListPaymentsQuery } from "./payment.validation";
+import type {
+  TAdminListPaymentsQuery,
+  TListPaymentsQuery,
+} from "./payment.validation";
 import { createFullName, getPagination } from "../../../utils/utils";
 import {
+  ADMIN_PAYMENT_DETAILS_SELECT,
+  ADMIN_PAYMENT_LIST_SELECT,
   PAYMENT_CREATE_BOOKING_SELECT,
   PAYMENT_DETAILS_SELECT,
   PAYMENT_FAILURE_SELECT,
@@ -26,7 +31,12 @@ import {
   PAYMENT_GATEWAY_CUSTOMER_SELECT,
   PAYMENT_LIST_SELECT,
 } from "./payment.include";
-import { paymentDetailsMapper, paymentListMapper } from "./payment.mapper";
+import {
+  adminPaymentDetailsMapper,
+  adminPaymentListMapper,
+  paymentDetailsMapper,
+  paymentListMapper,
+} from "./payment.mapper";
 import {
   notifyPaymentFailed,
   notifyPaymentSuccess,
@@ -34,9 +44,10 @@ import {
 
 export class PaymentService {
   //Get Payment List
-  private async paymentLists(
+  private async paymentLists<S extends Prisma.PaymentSelect>(
     baseWhere: Prisma.PaymentWhereInput,
-    query: TListPaymentsQuery,
+    query: TAdminListPaymentsQuery,
+    select: S,
   ) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
     const where = buildPaymentFilter(baseWhere, query);
@@ -46,17 +57,13 @@ export class PaymentService {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        select: PAYMENT_LIST_SELECT,
+        select,
       }),
       prisma.payment.count({ where }),
     ]);
 
-    const result = items.map((payment) => {
-      return paymentListMapper(payment);
-    });
-
     return {
-      items: result,
+      items: items as Prisma.PaymentGetPayload<{ select: S }>[],
       meta: { page, limit, total },
     };
   }
@@ -290,7 +297,12 @@ export class PaymentService {
   //----------Customer payment history-----------
   async getMyPaymentsList(userId: string, query: TListPaymentsQuery) {
     const customer = await findCustomerProfileByUserId(userId);
-    return this.paymentLists({ customerId: customer.id }, query);
+    const { items, meta } = await this.paymentLists(
+      { customerId: customer.id },
+      query,
+      PAYMENT_LIST_SELECT,
+    );
+    return { items: items.map(paymentListMapper), meta };
   }
 
   //--------------Get Payment details-------------
@@ -307,6 +319,20 @@ export class PaymentService {
         httpStatus.FORBIDDEN,
       );
     }
+    // Only an admin gets the payer, the gateway reference and the audit trail.
+    const isAdmin = role === TRole.ADMIN;
+
+    if (isAdmin) {
+      const payment = await prisma.payment.findFirst({
+        where,
+        select: ADMIN_PAYMENT_DETAILS_SELECT,
+      });
+      if (!payment) {
+        throw new AppError("Payment not found.", httpStatus.NOT_FOUND);
+      }
+      return adminPaymentDetailsMapper(payment);
+    }
+
     const payment = await prisma.payment.findFirst({
       where,
       select: PAYMENT_DETAILS_SELECT,
@@ -320,8 +346,13 @@ export class PaymentService {
   }
   //-------------ADMIN ACTIONS----------
   //----------All payment history-----------
-  async getAllPaymentLists(query: TListPaymentsQuery) {
-    return this.paymentLists({}, query);
+  async getAllPaymentLists(query: TAdminListPaymentsQuery) {
+    const { items, meta } = await this.paymentLists(
+      {},
+      query,
+      ADMIN_PAYMENT_LIST_SELECT,
+    );
+    return { items: items.map(adminPaymentListMapper), meta };
   }
 }
 

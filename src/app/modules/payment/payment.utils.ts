@@ -5,7 +5,7 @@ import config from "../../../config";
 import { SSL_CONFIG } from "./payment.constants";
 import { AppError } from "../../../utils/appError";
 import type { Prisma } from "../../../../generated/prisma/client";
-import type { TListPaymentsQuery } from "./payment.validation";
+import type { TAdminListPaymentsQuery } from "./payment.validation";
 import { getDateFromPeriod } from "../../../utils/utils";
 
 type TInitInput = {
@@ -140,12 +140,13 @@ export const verifySSLCommerzIPN = (payload: TIpnPayload): boolean => {
 };
 
 //Build Payment Queries
+// The admin query is a superset of the customer one, so it types both callers;
+// `search` simply never survives validation on the customer route.
 export const buildPaymentFilter = (
   baseWhere: Prisma.PaymentWhereInput,
-  query: TListPaymentsQuery,
+  query: TAdminListPaymentsQuery,
 ): Prisma.PaymentWhereInput => {
   return {
-    ...baseWhere,
     ...(query.status && {
       status: query.status,
     }),
@@ -154,5 +155,23 @@ export const buildPaymentFilter = (
         gte: getDateFromPeriod(query.period),
       },
     }),
+    ...(query.search && {
+      OR: [
+        { transactionId: { contains: query.search, mode: "insensitive" } },
+        {
+          customer: {
+            users: {
+              OR: [
+                { firstName: { contains: query.search, mode: "insensitive" } },
+                { lastName: { contains: query.search, mode: "insensitive" } },
+                { email: { contains: query.search, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
+      ],
+    }),
+    // Server-set scope spread last so no query param can widen it.
+    ...baseWhere,
   };
 };
