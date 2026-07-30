@@ -4,6 +4,7 @@ import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
 import { reviewController } from "./review.controller";
 import {
+  adminListReviewSchema,
   createReviewSchema,
   listReviewSchema,
   publicReviewListSchema,
@@ -63,7 +64,10 @@ export const reviewRoute: TRouteModule = {
     {
       method: "get",
       path: "/admin/reviews",
-      middlewares: roleRoute([TRole.ADMIN], validateRequest(listReviewSchema)),
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(adminListReviewSchema),
+      ),
       handler: reviewController.getAllReviews,
     },
     {

@@ -1,4 +1,5 @@
 import type { Prisma } from "../../../../generated/prisma/client";
+import { publicReviewMapper } from "../review/review.mapper";
 import type {
   ADMIN_TECHNICIAN_LIST_SELECT,
   TECHNICIAN_DETAILS_SELECT,
@@ -48,7 +49,7 @@ export const technicianDetailsMapper = (
     price: service.price,
     category: service.category.name,
   })),
-  reviews: technician.reviews,
+  reviews: technician.reviews.map(publicReviewMapper),
   // Renamed off the relation: the page shows "when they work", and nothing on
   // the client cares that a row of the slot table is behind it.
   availability: technician.availabilitySlots,

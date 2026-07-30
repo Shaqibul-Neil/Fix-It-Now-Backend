@@ -3,6 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { findCustomerProfileByUserId } from "../customer/customer.model";
 import type {
+  TAdminListReviewQuery,
   TCreateReviewPayload,
   TListReviewQuery,
   TPublicReviewQuery,
@@ -17,11 +18,19 @@ import {
 } from "../../../../generated/prisma/enums";
 import { ensureNotEmptyObject, getPagination } from "../../../utils/utils";
 import {
+  ADMIN_REVIEW_SELECT,
+  PUBLIC_REVIEW_SELECT,
   REVIEW_BOOKING_SELECT,
+  REVIEW_LIST_SELECT,
   REVIEW_MODERATION_SELECT,
   REVIEW_OWNER_SELECT,
   REVIEW_SELECT,
 } from "./review.include";
+import {
+  adminReviewMapper,
+  publicReviewMapper,
+  reviewListMapper,
+} from "./review.mapper";
 import { buildReviewFilter } from "./review.utils";
 import { computeTechnicianRating } from "./review.model";
 import type { Prisma } from "../../../../generated/prisma/client";
@@ -182,7 +191,12 @@ export class ReviewService {
   //--------------My Reviews-------------
   async getMyReviews(userId: string, query: TListReviewQuery) {
     const customer = await findCustomerProfileByUserId(userId);
-    return this.reviewLists({ customerId: customer.id }, query);
+    return this.reviewLists(
+      { customerId: customer.id },
+      query,
+      REVIEW_LIST_SELECT,
+      reviewListMapper,
+    );
   }
 
   //-------------PUBLIC ACTIONS--------------
@@ -198,13 +212,15 @@ export class ReviewService {
         },
       },
       query,
+      PUBLIC_REVIEW_SELECT,
+      publicReviewMapper,
     );
   }
 
   //-------------ADMIN ACTIONS----------
   //--------------All Review's-------------
-  async getAllReviews(query: TListReviewQuery) {
-    return this.reviewLists({}, query);
+  async getAllReviews(query: TAdminListReviewQuery) {
+    return this.reviewLists({}, query, ADMIN_REVIEW_SELECT, adminReviewMapper);
   }
 
   // Moderate: PENDING <-> PUBLISHED / HIDDEN / REJECTED

@@ -4,6 +4,21 @@ import type { SeededBooking } from "./booking.seed";
 import type { SeededTech } from "./technician.seed";
 import { HOUR, inBatches, randomInt } from "./seed.helpers";
 
+// When the row was last written. Prisma stamps @updatedAt with now() unless it
+// is passed explicitly, which would make every seeded review read "edited
+// today" — and on the admin screen a gap from createdAt is exactly the signal
+// that the customer went back and changed their review.
+function lastWriteAt(status: TReviewStatus, writtenAt: Date): Date {
+  switch (status) {
+    case TReviewStatus.PENDING:
+      // Nobody has touched it yet — that is what PENDING means.
+      return writtenAt;
+    default:
+      // A moderator got to it within a few hours to a couple of days.
+      return new Date(writtenAt.getTime() + randomInt(1, 48) * HOUR);
+  }
+}
+
 export async function seedReviews(
   bookings: SeededBooking[],
   technicians: SeededTech[],
@@ -28,6 +43,7 @@ export async function seedReviews(
         comment: spec.comment,
         status: spec.status,
         createdAt: writtenAt,
+        updatedAt: lastWriteAt(spec.status, writtenAt),
       };
     });
 

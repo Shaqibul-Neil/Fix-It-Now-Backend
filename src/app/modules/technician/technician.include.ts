@@ -9,6 +9,7 @@ import {
   AVAILABILITY_ORDER_BY,
   PUBLIC_AVAILABILITY_SELECT,
 } from "../availabilitySlot/availabilitySlot.include";
+import { PUBLIC_REVIEW_SELECT } from "../review/review.include";
 
 // The three gates a technician has to pass to exist for a customer: the
 // onboarding form is finished, an admin approved it, and the account is not
@@ -70,6 +71,8 @@ export const TECHNICIAN_DETAILS_SELECT = {
       },
     },
   },
+  // Same row the dedicated review endpoint serves — an unsigned "5 stars, great
+  // work" carries no weight, and the reader wants to know which job it was for.
   reviews: {
     where: {
       status: TReviewStatus.PUBLISHED,
@@ -78,12 +81,7 @@ export const TECHNICIAN_DETAILS_SELECT = {
       createdAt: "desc",
     },
     take: 20,
-    select: {
-      id: true,
-      rating: true,
-      comment: true,
-      createdAt: true,
-    },
+    select: PUBLIC_REVIEW_SELECT,
   },
   // The profile page is where a customer decides whether this technician suits
   // them, and "when do they work" is part of that. It rides along here so the

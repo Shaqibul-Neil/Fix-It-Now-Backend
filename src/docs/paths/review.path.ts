@@ -1,10 +1,48 @@
-const reviewStatusEnum = ["PENDING", "PUBLISHED", "HIDDEN", "REJECTED"];
+// Same shape for every paginated list in this file.
+const paginatedList = (itemRef: string, description: string) => ({
+  description,
+  content: {
+    "application/json": {
+      schema: {
+        type: "object",
+        properties: {
+          items: { type: "array", items: { $ref: itemRef } },
+          meta: {
+            type: "object",
+            properties: {
+              page: { type: "integer", example: 1 },
+              limit: { type: "integer", example: 10 },
+              total: { type: "integer", example: 81 },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+const ratingParam = {
+  name: "rating",
+  in: "query",
+  required: false,
+  schema: { type: "integer", minimum: 1, maximum: 5 },
+};
+
+const statusParam = {
+  name: "status",
+  in: "query",
+  required: false,
+  schema: { $ref: "#/components/schemas/ReviewStatus" },
+};
 
 export const reviewPaths = {
   "/reviews": {
     post: {
       tags: ["Reviews"],
       summary: "Customer: create a review for a completed booking",
+      description:
+        "Only for the caller's own booking, only once it is COMPLETED, and only once per booking. " +
+        "Starts PENDING and does not affect the technician's rating until an admin publishes it.",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -15,6 +53,8 @@ export const reviewPaths = {
         "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
+        "404": { $ref: "#/components/responses/NotFound" },
+        "409": { description: "This booking already has a review." },
       },
     },
   },
@@ -22,15 +62,19 @@ export const reviewPaths = {
     get: {
       tags: ["Reviews"],
       summary: "Customer: own reviews",
+      description:
+        "Scoped to the caller's customer profile on the server — there is no query parameter that can widen it. " +
+        "Each row names the technician and the job, so a review is identifiable without a second lookup.",
       security: [{ bearerAuth: [] }],
       parameters: [
-        { name: "status", in: "query", required: false, schema: { type: "string", enum: reviewStatusEnum } },
-        { name: "rating", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 5 } },
+        statusParam,
+        ratingParam,
         { $ref: "#/components/parameters/PageParam" },
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": { description: "Paginated own reviews." },
+        "200": paginatedList("#/components/schemas/ReviewListItem", "Paginated own reviews, newest first."),
+        "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
       },
@@ -57,6 +101,7 @@ export const reviewPaths = {
     delete: {
       tags: ["Reviews"],
       summary: "Customer (own) or Admin: delete review",
+      description: "The technician's rating is recomputed in the same transaction as the delete.",
       security: [{ bearerAuth: [] }],
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
       responses: {
@@ -71,14 +116,20 @@ export const reviewPaths = {
     get: {
       tags: ["Reviews"],
       summary: "Public: PUBLISHED reviews for a technician",
+      description:
+        "PUBLISHED only, and only for a technician who is APPROVED and not banned — an unapproved profile's reviews " +
+        "stay as invisible as the profile.\n\n" +
+        "The technician is not repeated on each row; it is the `id` in the path. The reviewer is, because an unsigned " +
+        "review carries no weight.",
       parameters: [
-        { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
-        { name: "rating", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 5 } },
+        { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "TechnicianProfile id." },
+        ratingParam,
         { $ref: "#/components/parameters/PageParam" },
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": { description: "Paginated PUBLISHED reviews only." },
+        "200": paginatedList("#/components/schemas/PublicReviewItem", "Paginated PUBLISHED reviews, newest first."),
+        "400": { $ref: "#/components/responses/ValidationError" },
         "404": { $ref: "#/components/responses/NotFound" },
       },
     },
@@ -87,15 +138,26 @@ export const reviewPaths = {
     get: {
       tags: ["Reviews"],
       summary: "Admin: list all reviews",
+      description:
+        "The moderation queue. Every row names who wrote it, who it is about and which job it was for — a rating with " +
+        "no subject is nothing to decide on. Filter `status=PENDING` for the review backlog.",
       security: [{ bearerAuth: [] }],
       parameters: [
-        { name: "status", in: "query", required: false, schema: { type: "string", enum: reviewStatusEnum } },
-        { name: "rating", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 5 } },
+        statusParam,
+        ratingParam,
+        {
+          name: "search",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description: "Matches either party's first name, last name or email, or the service title.",
+        },
         { $ref: "#/components/parameters/PageParam" },
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": { description: "Paginated all reviews." },
+        "200": paginatedList("#/components/schemas/AdminReviewItem", "Paginated reviews in every state, newest first."),
+        "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
       },
@@ -105,6 +167,9 @@ export const reviewPaths = {
     patch: {
       tags: ["Reviews"],
       summary: "Admin: moderate review status",
+      description:
+        "Recomputes the technician's rating in the same transaction, so a PUBLISHED review counts immediately and a " +
+        "HIDDEN one stops counting. The customer and technician are notified only when it goes PUBLISHED.",
       security: [{ bearerAuth: [] }],
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
       requestBody: {

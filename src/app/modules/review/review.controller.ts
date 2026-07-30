@@ -4,6 +4,7 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import { sendResponse } from "../../../utils/sendResponse";
 import { reviewService, type ReviewService } from "./review.service";
 import type {
+  TAdminListReviewQuery,
   TCreateReviewPayload,
   TListReviewQuery,
   TPublicReviewQuery,
@@ -111,7 +112,7 @@ class ReviewController {
   //-------------ADMIN ACTIONS----------
   //--------------All Review's-------------
   getAllReviews = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const query = req.query as TListReviewQuery;
+    const query = req.query as TAdminListReviewQuery;
     const { items, meta } = await this.reviewService.getAllReviews(query);
 
     sendResponse({

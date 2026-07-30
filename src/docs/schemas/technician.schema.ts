@@ -120,16 +120,6 @@ export const technicianSchemas = {
       category: { type: "string", example: "Plumbing" },
     },
   },
-  TechnicianReviewCard: {
-    type: "object",
-    description: "One published review. Pending, hidden and rejected reviews never appear here.",
-    properties: {
-      id: { type: "string", format: "uuid" },
-      rating: { type: "integer", minimum: 1, maximum: 5, example: 5 },
-      comment: { type: "string", nullable: true, example: "Fixed it in under an hour." },
-      createdAt: { type: "string", format: "date-time" },
-    },
-  },
   TechnicianDetails: {
     type: "object",
     description:
@@ -150,7 +140,13 @@ export const technicianSchemas = {
       approvalStatus: { $ref: "#/components/schemas/TechnicianApprovalStatus" },
       rejectionReason: { type: "string", nullable: true },
       services: { type: "array", items: { $ref: "#/components/schemas/TechnicianServiceCard" } },
-      reviews: { type: "array", items: { $ref: "#/components/schemas/TechnicianReviewCard" } },
+      reviews: {
+        type: "array",
+        description:
+          "The 20 most recent PUBLISHED reviews — the same row `GET /technicians/{id}/reviews` serves, so a page can " +
+          "show these and switch to the paginated endpoint for the rest without changing its rendering.",
+        items: { $ref: "#/components/schemas/PublicReviewItem" },
+      },
       availability: {
         type: "array",
         description:
