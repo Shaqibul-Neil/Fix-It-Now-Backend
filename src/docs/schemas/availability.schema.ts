@@ -10,7 +10,11 @@ export const availabilitySchemas = {
   AvailabilitySlot: {
     type: "object",
     required: ["dayOfWeek", "startTime", "endTime"],
-    description: "One weekly working window. `endTime` must be later than `startTime`, and two slots on the same day may not overlap.",
+    description:
+      "One weekly working window. `endTime` must be later than `startTime`, and two slots on the same day may not overlap.\n\n" +
+      "`startTime` / `endTime` are local wall-clock times on the platform's timezone (Asia/Dhaka), not UTC — " +
+      "`09:00` is nine in the morning as the technician and the customer both read it. `dayOfWeek` is that same " +
+      "local day. A booking is converted into that zone before it is matched against these hours.",
     properties: {
       dayOfWeek: { $ref: "#/components/schemas/DayOfWeek" },
       startTime: { type: "string", pattern: TIME_PATTERN, example: "09:00" },

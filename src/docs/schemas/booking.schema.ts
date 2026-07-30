@@ -4,7 +4,16 @@ export const bookingSchemas = {
     required: ["serviceId", "scheduledAt", "address"],
     properties: {
       serviceId: { type: "string", format: "uuid" },
-      scheduledAt: { type: "string", format: "date-time", description: "Must be in the future." },
+      scheduledAt: {
+        type: "string",
+        format: "date-time",
+        description:
+          "An instant, not a local string — send it with a zone (`2026-08-03T04:00:00.000Z` or `...+06:00`). " +
+          "Must be in the future. The server resolves it onto the platform's wall clock (Asia/Dhaka) before " +
+          "checking the technician's weekly availability, so `Monday 10:00` in the picker is matched against a " +
+          "Monday 09:00-17:00 slot. A technician who has published no availability skips the check entirely.",
+        example: "2026-08-03T04:00:00.000Z",
+      },
       address: { type: "string", minLength: 1, maxLength: 500, example: "House 12, Road 3" },
       city: { type: "string", maxLength: 100, example: "Dhaka" },
       area: { type: "string", maxLength: 100, example: "Gulshan" },
