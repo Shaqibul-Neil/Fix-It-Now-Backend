@@ -8,6 +8,9 @@ const slotSchema = z
     dayOfWeek: z.enum(TDayOfWeek),
     startTime: z.string().regex(timeRegex, "startTime must be HH:mm (24h)"),
     endTime: z.string().regex(timeRegex, "endTime must be HH:mm (24h)"),
+    // A day kept in the schedule but not taking work — a holiday, not a
+    // deletion. Defaults to live, so a client that never sends it is unaffected.
+    isActive: z.boolean().default(true),
   })
   .refine((s) => s.startTime < s.endTime, {
     message: "EndTime must be after startTime",

@@ -7,9 +7,12 @@ import { findTechnicianProfileByUserId } from "../technician/technician.model";
 import { createFullName } from "../../../utils/utils";
 import { notifyAvailabilityUpdated } from "../notification/notification.events";
 import {
+  AVAILABILITY_ORDER_BY,
   AVAILABILITY_SLOT_SELECT,
   AVAILABILITY_TECHNICIAN_SELECT,
+  PUBLIC_AVAILABILITY_SELECT,
 } from "./availabilitySlot.include";
+import { PUBLIC_TECHNICIAN_WHERE } from "../technician/technician.include";
 
 export class AvailabilityService {
   // Prevent overlapping availability slots within the same day.
@@ -42,17 +45,15 @@ export class AvailabilityService {
   }
 
   //Get All The Availability
+  // Raw start/end rather than a "09:00 - 17:00" label: the PUT that writes these
+  // takes the two fields separately, so the edit form has to read them back the
+  // same way. Inactive days are kept — they are the technician's own.
   private async getAvailabilityByTechnicianId(technicianId: string) {
-    const slots = await prisma.availabilitySlot.findMany({
+    return prisma.availabilitySlot.findMany({
       where: { technicianId },
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+      orderBy: AVAILABILITY_ORDER_BY,
       select: AVAILABILITY_SLOT_SELECT,
     });
-    return slots.map((slot) => ({
-      id: slot.id,
-      day: slot.dayOfWeek,
-      time: `${slot.startTime} - ${slot.endTime}`,
-    }));
   }
 
   //--------------Set / Replace availability
@@ -76,6 +77,7 @@ export class AvailabilityService {
       dayOfWeek: slot.dayOfWeek,
       startTime: slot.startTime,
       endTime: slot.endTime,
+      isActive: slot.isActive,
     }));
 
     await prisma.$transaction([
@@ -100,6 +102,32 @@ export class AvailabilityService {
   async getMyAvailability(userId: string) {
     const technician = await findTechnicianProfileByUserId(userId);
     return this.getAvailabilityByTechnicianId(technician.id);
+  }
+
+  //--------------Public: one technician's bookable hours-------------
+  async getPublicAvailability(technicianId: string) {
+    // Read through the profile instead of straight at the slot table. A pending,
+    // rejected or banned technician answers 404 on their profile, and their
+    // working hours have to be exactly as invisible.
+    const technician = await prisma.technicianProfile.findFirst({
+      where: { id: technicianId, ...PUBLIC_TECHNICIAN_WHERE },
+      select: {
+        availabilitySlots: {
+          where: { isActive: true },
+          orderBy: AVAILABILITY_ORDER_BY,
+          select: PUBLIC_AVAILABILITY_SELECT,
+        },
+      },
+    });
+
+    if (!technician) {
+      throw new AppError("Technician not found.", httpStatus.NOT_FOUND);
+    }
+
+    // An empty list is a real answer, not a miss: the booking check skips a
+    // technician who published no hours, so the caller falls back to an open
+    // time picker rather than showing nothing.
+    return technician.availabilitySlots;
   }
 }
 

@@ -37,3 +37,55 @@ export const REVIEW_BOOKING_SELECT = {
     },
   },
 } as const satisfies Prisma.BookingSelect;
+
+// The customer's own reviews. `status` stays: this is where they find out an
+// admin has not published their review yet. The technician and the job come
+// along because a bare "you gave 5 stars" names nothing the customer can place.
+export const REVIEW_LIST_SELECT = {
+  ...REVIEW_SELECT,
+  bookingId: true,
+  technician: {
+    select: {
+      id: true,
+      users: { select: { firstName: true, lastName: true } },
+    },
+  },
+  service: { select: { id: true, title: true } },
+} as const satisfies Prisma.ReviewSelect;
+
+// A published review on a technician's public page. No `status` — the query
+// forces PUBLISHED, so the field would be the same constant on every row. No
+// email either: a review card is not a reason to hand out the reviewer's inbox.
+export const PUBLIC_REVIEW_SELECT = {
+  id: true,
+  rating: true,
+  comment: true,
+  createdAt: true,
+  customer: {
+    select: {
+      id: true,
+      users: { select: { firstName: true, lastName: true } },
+    },
+  },
+  service: { select: { id: true, title: true } },
+} as const satisfies Prisma.ReviewSelect;
+
+// The admin moderation queue. Both parties with their email, because deciding
+// on a disputed review means being able to reach either one, and `updatedAt`
+// so an edited review is distinguishable from an untouched one.
+export const ADMIN_REVIEW_SELECT = {
+  ...REVIEW_LIST_SELECT,
+  updatedAt: true,
+  technician: {
+    select: {
+      id: true,
+      users: { select: { firstName: true, lastName: true, email: true } },
+    },
+  },
+  customer: {
+    select: {
+      id: true,
+      users: { select: { firstName: true, lastName: true, email: true } },
+    },
+  },
+} as const satisfies Prisma.ReviewSelect;

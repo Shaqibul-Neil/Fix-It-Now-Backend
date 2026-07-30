@@ -2,6 +2,7 @@ import { TRole } from "../../../../generated/prisma/enums";
 import { validateRequest } from "../../../middlewares/validate";
 import { roleRoute } from "../../routes/route.helpers";
 import type { TRouteModule } from "../../routes/route.types";
+import { availabilityController } from "../availabilitySlot/availabilitySlot.controller";
 import { technicianController } from "./technician.controller";
 import {
   adminListTechniciansSchema,
@@ -53,6 +54,12 @@ export const technicianRoute: TRouteModule = {
       path: "/:id",
       middlewares: [validateRequest(technicianIdParamSchema)],
       handler: technicianController.getTechnicianById,
+    },
+    {
+      method: "get",
+      path: "/:id/availability",
+      middlewares: [validateRequest(technicianIdParamSchema)],
+      handler: availabilityController.getTechnicianAvailability,
     },
 
     // ---------------Admin----------------

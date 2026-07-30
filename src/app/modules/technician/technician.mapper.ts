@@ -49,6 +49,9 @@ export const technicianDetailsMapper = (
     category: service.category.name,
   })),
   reviews: technician.reviews,
+  // Renamed off the relation: the page shows "when they work", and nothing on
+  // the client cares that a row of the slot table is behind it.
+  availability: technician.availabilitySlots,
 });
 
 // admin table row — approval state + contact + completed jobs on top of the list row

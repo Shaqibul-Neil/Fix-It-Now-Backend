@@ -1,9 +1,6 @@
-import {
-  Prisma,
-  TTechnicianApprovalStatus,
-  TUserStatus,
-} from "../../../../generated/prisma/client";
+import type { Prisma } from "../../../../generated/prisma/client";
 import { generateSlug } from "../../../utils/utils";
+import { PUBLIC_TECHNICIAN_WHERE } from "../technician/technician.include";
 import type { TListServicesQuery } from "./service.validation";
 
 // ---------- Public Service Filter ----------
@@ -14,9 +11,6 @@ export const buildServiceFilter = (
     isActive: true,
 
     technician: {
-      isProfileComplete: true,
-      approvalStatus: TTechnicianApprovalStatus.APPROVED,
-      users: { status: TUserStatus.ACTIVE },
       ...(query.city && {
         city: {
           contains: query.city,
@@ -36,6 +30,10 @@ export const buildServiceFilter = (
           gte: query.minRating,
         },
       }),
+
+      // Spread last: a filter the caller sends can narrow this list, never
+      // widen it past the visibility gate.
+      ...PUBLIC_TECHNICIAN_WHERE,
     },
 
     ...(query.category && {

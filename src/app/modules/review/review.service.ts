@@ -31,10 +31,14 @@ import {
 } from "../notification/notification.events";
 
 export class ReviewService {
-  // Shared review list query
-  private async reviewLists(
+  // Shared review list query. Every audience gets a different row: the customer
+  // needs to know who they reviewed, the public page needs to know who wrote it,
+  // and the admin needs both parties. So the caller passes the shape it wants.
+  private async reviewLists<S extends Prisma.ReviewSelect, R>(
     baseWhere: Prisma.ReviewWhereInput,
-    query: TListReviewQuery,
+    query: TAdminListReviewQuery,
+    select: S,
+    mapper: (review: Prisma.ReviewGetPayload<{ select: S }>) => R,
   ) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
 
@@ -46,13 +50,13 @@ export class ReviewService {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        select: REVIEW_SELECT,
+        select,
       }),
       prisma.review.count({ where }),
     ]);
 
     return {
-      items,
+      items: (items as Prisma.ReviewGetPayload<{ select: S }>[]).map(mapper),
       meta: { page, limit, total },
     };
   }

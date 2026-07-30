@@ -19,6 +19,7 @@ import {
 } from "../../../utils/utils";
 import {
   ADMIN_TECHNICIAN_LIST_SELECT,
+  PUBLIC_TECHNICIAN_WHERE,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
   TECHNICIAN_MY_PROFILE_INCLUDE,
@@ -41,10 +42,7 @@ import {
   technicianListMapper,
 } from "./technician.mapper";
 import { getBookingStatusBreakdown } from "../booking/booking.model";
-import {
-  TTechnicianApprovalStatus,
-  TUserStatus,
-} from "../../../../generated/prisma/enums";
+import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
 
 export class TechnicianService {
   //-------------TECHNICIAN ACTIONS--------------
@@ -178,12 +176,7 @@ export class TechnicianService {
   //---------Public: technician profile + reviews-------------
   async getTechnicianById(id: string) {
     const technician = await prisma.technicianProfile.findFirst({
-      where: {
-        id,
-        isProfileComplete: true,
-        approvalStatus: TTechnicianApprovalStatus.APPROVED,
-        users: { status: TUserStatus.ACTIVE },
-      },
+      where: { id, ...PUBLIC_TECHNICIAN_WHERE },
       select: TECHNICIAN_DETAILS_SELECT,
     });
     if (!technician) {

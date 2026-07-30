@@ -77,26 +77,103 @@ export const technicianSchemas = {
       },
     },
   },
-  TechnicianAdminListItem: {
+  TechnicianListItem: {
     type: "object",
-    description: "One row of the admin technician table.",
+    description: "One row of the public technician list. `id` is the TechnicianProfile id, not the User id.",
     properties: {
       id: { type: "string", format: "uuid" },
       firstName: { type: "string", example: "Karim" },
       lastName: { type: "string", example: "Mia" },
       email: { type: "string", format: "email" },
-      phone: { type: "string", example: "01710000001" },
       experienceYears: { type: "integer", example: 8 },
       hourlyRate: { type: "number", example: 500 },
       city: { type: "string", example: "Dhaka" },
       area: { type: "string", example: "Dhanmondi" },
       averageRating: { type: "number", example: 4.5 },
       totalReviews: { type: "integer", example: 12 },
+    },
+  },
+  TechnicianAdminListItem: {
+    allOf: [
+      { $ref: "#/components/schemas/TechnicianListItem" },
+      {
+        type: "object",
+        description: "The public row plus the approval state, contact details and completed-job count.",
+        properties: {
+          phone: { type: "string", example: "01710000001" },
+          approvalStatus: { $ref: "#/components/schemas/TechnicianApprovalStatus" },
+          rejectionReason: { type: "string", nullable: true },
+          reviewedAt: { type: "string", format: "date-time", nullable: true },
+          appliedAt: { type: "string", format: "date-time", description: "When the onboarding was submitted." },
+          completedJobs: { type: "integer", example: 7 },
+        },
+      },
+    ],
+  },
+  TechnicianServiceCard: {
+    type: "object",
+    description: "One service the technician offers. Switched-off services are left out.",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      title: { type: "string", example: "Emergency pipe leak repair" },
+      price: { type: "string", description: "Decimal serialised as a string.", example: "1500.00" },
+      category: { type: "string", example: "Plumbing" },
+    },
+  },
+  TechnicianReviewCard: {
+    type: "object",
+    description: "One published review. Pending, hidden and rejected reviews never appear here.",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      rating: { type: "integer", minimum: 1, maximum: 5, example: 5 },
+      comment: { type: "string", nullable: true, example: "Fixed it in under an hour." },
+      createdAt: { type: "string", format: "date-time" },
+    },
+  },
+  TechnicianDetails: {
+    type: "object",
+    description:
+      "The public profile page in one response — the technician, what they sell, what customers said, and when they work. " +
+      "The last 20 published reviews only.",
+    properties: {
+      id: { type: "string", format: "uuid", description: "TechnicianProfile id." },
+      firstName: { type: "string", example: "Karim" },
+      lastName: { type: "string", example: "Mia" },
+      bio: { type: "string", nullable: true, example: "Licensed plumber, 8 years." },
+      experienceYears: { type: "integer", example: 8 },
+      hourlyRate: { type: "number", example: 500 },
+      serviceRadius: { type: "integer", nullable: true, description: "Kilometres the technician travels.", example: 10 },
+      city: { type: "string", example: "Dhaka" },
+      area: { type: "string", example: "Dhanmondi" },
+      averageRating: { type: "number", example: 4.5 },
+      totalReviews: { type: "integer", example: 12 },
       approvalStatus: { $ref: "#/components/schemas/TechnicianApprovalStatus" },
       rejectionReason: { type: "string", nullable: true },
-      reviewedAt: { type: "string", format: "date-time", nullable: true },
-      appliedAt: { type: "string", format: "date-time", description: "When the onboarding was submitted." },
-      completedJobs: { type: "integer", example: 7 },
+      services: { type: "array", items: { $ref: "#/components/schemas/TechnicianServiceCard" } },
+      reviews: { type: "array", items: { $ref: "#/components/schemas/TechnicianReviewCard" } },
+      availability: {
+        type: "array",
+        description:
+          "The weekly schedule, so the profile page can answer \"when can I get them\" without a second request. " +
+          "Empty means no schedule published, which blocks nothing — see `GET /technicians/{id}/availability`.",
+        items: { $ref: "#/components/schemas/PublicAvailabilitySlot" },
+      },
     },
+  },
+  TechnicianAdminDetails: {
+    allOf: [
+      { $ref: "#/components/schemas/TechnicianDetails" },
+      {
+        type: "object",
+        description: "The same payload with no approval filter, plus the booking counts.",
+        properties: {
+          bookingsByStatus: {
+            type: "array",
+            description: "Every status is present, zero-filled.",
+            items: { $ref: "#/components/schemas/StatusBreakdownItem" },
+          },
+        },
+      },
+    ],
   },
 };

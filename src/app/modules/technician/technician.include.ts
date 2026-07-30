@@ -2,7 +2,23 @@ import type { Prisma } from "../../../../generated/prisma/client";
 import {
   TBookingStatus,
   TReviewStatus,
+  TTechnicianApprovalStatus,
+  TUserStatus,
 } from "../../../../generated/prisma/enums";
+import {
+  AVAILABILITY_ORDER_BY,
+  PUBLIC_AVAILABILITY_SELECT,
+} from "../availabilitySlot/availabilitySlot.include";
+
+// The three gates a technician has to pass to exist for a customer: the
+// onboarding form is finished, an admin approved it, and the account is not
+// banned. A ban is an account action and an approval is a review decision, so
+// neither implies the other — every public read spreads all three.
+export const PUBLIC_TECHNICIAN_WHERE = {
+  isProfileComplete: true,
+  approvalStatus: TTechnicianApprovalStatus.APPROVED,
+  users: { status: TUserStatus.ACTIVE },
+} as const satisfies Prisma.TechnicianProfileWhereInput;
 
 export const TECHNICIAN_LIST_SELECT = {
   id: true,
@@ -68,6 +84,14 @@ export const TECHNICIAN_DETAILS_SELECT = {
       comment: true,
       createdAt: true,
     },
+  },
+  // The profile page is where a customer decides whether this technician suits
+  // them, and "when do they work" is part of that. It rides along here so the
+  // page does not need a second request just to answer it.
+  availabilitySlots: {
+    where: { isActive: true },
+    orderBy: AVAILABILITY_ORDER_BY,
+    select: PUBLIC_AVAILABILITY_SELECT,
   },
 } as const satisfies Prisma.TechnicianProfileSelect;
 

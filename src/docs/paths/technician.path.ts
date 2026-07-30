@@ -1,3 +1,26 @@
+// Same shape for every paginated list in this file.
+const paginatedList = (itemRef: string, description: string, totalExample: number) => ({
+  description,
+  content: {
+    "application/json": {
+      schema: {
+        type: "object",
+        properties: {
+          items: { type: "array", items: { $ref: itemRef } },
+          meta: {
+            type: "object",
+            properties: {
+              page: { type: "integer", example: 1 },
+              limit: { type: "integer", example: 10 },
+              total: { type: "integer", example: totalExample },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
 export const technicianPaths = {
   "/technicians/profile": {
     post: {
@@ -58,7 +81,7 @@ export const technicianPaths = {
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": { description: "Paginated technician list." },
+        "200": paginatedList("#/components/schemas/TechnicianListItem", "Paginated technician list, highest rated first.", 21),
         "400": { $ref: "#/components/responses/ValidationError" },
       },
     },
@@ -68,10 +91,17 @@ export const technicianPaths = {
       tags: ["Technicians"],
       summary: "Public: technician details",
       description:
-        "404 for a PENDING or REJECTED technician — a direct link must not expose an unapproved profile.",
-      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        "404 for a PENDING, REJECTED or banned technician — a direct link must not expose a profile the list hides.\n\n" +
+        "Carries the technician's weekly `availability` so the profile page can show it without a second call. " +
+        "Do not drive the booking panel from this response though: it also drags along 20 reviews and every service. " +
+        "The panel wants `GET /technicians/{id}/availability`.",
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "TechnicianProfile id." }],
       responses: {
-        "200": { description: "Technician details." },
+        "200": {
+          description: "Technician details.",
+          content: { "application/json": { schema: { $ref: "#/components/schemas/TechnicianDetails" } } },
+        },
+        "400": { $ref: "#/components/responses/ValidationError" },
         "404": { $ref: "#/components/responses/NotFound" },
       },
     },
@@ -102,30 +132,7 @@ export const technicianPaths = {
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": {
-          description: "Paginated admin technician list.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  items: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/TechnicianAdminListItem" },
-                  },
-                  meta: {
-                    type: "object",
-                    properties: {
-                      page: { type: "integer", example: 1 },
-                      limit: { type: "integer", example: 10 },
-                      total: { type: "integer", example: 44 },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        "200": paginatedList("#/components/schemas/TechnicianAdminListItem", "Paginated admin technician list.", 44),
         "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
@@ -139,9 +146,13 @@ export const technicianPaths = {
       description:
         "Same detail payload as the public route but with no approval filter, plus a per-status booking count.",
       security: [{ bearerAuth: [] }],
-      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "TechnicianProfile id." }],
       responses: {
-        "200": { description: "Technician details with `bookingsByStatus`." },
+        "200": {
+          description: "Technician details with `bookingsByStatus`.",
+          content: { "application/json": { schema: { $ref: "#/components/schemas/TechnicianAdminDetails" } } },
+        },
+        "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
         "404": { $ref: "#/components/responses/NotFound" },

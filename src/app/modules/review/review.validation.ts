@@ -44,6 +44,15 @@ export const listReviewSchema = z.object({
   }),
 });
 
+// Admin review filter — the shared filters plus a party search.
+// Kept separate from listReviewSchema so `search` can never reach a customer's
+// own list, where it would let them probe rows the customerId gate hides.
+export const adminListReviewSchema = z.object({
+  query: listReviewSchema.shape.query.extend({
+    search: z.string().trim().min(1).optional(),
+  }),
+});
+
 // Public technician/service reviews — NO status field
 export const publicReviewListSchema = z.object({
   params: z.object({ id: z.uuid("Invalid id") }),
@@ -61,6 +70,9 @@ export type TUpdateReviewStatusPayload = z.infer<
 >["body"];
 
 export type TListReviewQuery = z.infer<typeof listReviewSchema>["query"];
+export type TAdminListReviewQuery = z.infer<
+  typeof adminListReviewSchema
+>["query"];
 export type TPublicReviewQuery = z.infer<
   typeof publicReviewListSchema
 >["query"];
