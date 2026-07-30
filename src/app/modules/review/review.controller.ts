@@ -8,6 +8,7 @@ import type {
   TCreateReviewPayload,
   TListReviewQuery,
   TPublicReviewQuery,
+  TTechnicianReviewQuery,
   TUpdateReviewPayload,
   TUpdateReviewStatusPayload,
 } from "./review.validation";
@@ -89,6 +90,28 @@ class ReviewController {
       meta,
     });
   });
+
+  //-------------TECHNICIAN ACTIONS----------
+  //--------------Reviews written about me-------------
+  getMyTechnicianReviews = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const userId = req.user.id;
+      const query = req.query as TTechnicianReviewQuery;
+      const { items, meta } = await this.reviewService.getMyTechnicianReviews(
+        userId,
+        query,
+      );
+
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Reviews fetched successfully",
+        data: items,
+        meta,
+      });
+    },
+  );
 
   //-------------PUBLIC ACTIONS----------
   getTechnicianReviews = asyncHandler(async (req: TRequest, res: TResponse) => {

@@ -2,11 +2,13 @@ import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { findCustomerProfileByUserId } from "../customer/customer.model";
+import { findTechnicianProfileByUserId } from "../technician/technician.model";
 import type {
   TAdminListReviewQuery,
   TCreateReviewPayload,
   TListReviewQuery,
   TPublicReviewQuery,
+  TTechnicianReviewQuery,
   TUpdateReviewPayload,
 } from "./review.validation";
 import {
@@ -196,6 +198,29 @@ export class ReviewService {
       query,
       REVIEW_LIST_SELECT,
       reviewListMapper,
+    );
+  }
+
+  //-------------TECHNICIAN ACTIONS----------
+  //--------------Reviews written about me-------------
+  async getMyTechnicianReviews(
+    userId: string,
+    query: TTechnicianReviewQuery,
+  ) {
+    const technician = await findTechnicianProfileByUserId(userId);
+
+    // PUBLISHED only, same as the public page. A PENDING review has not been
+    // moderated yet and a REJECTED one never will be — neither is the
+    // technician's to see, and neither moves their rating.
+    //
+    // No approval gate on the technician here: this is their own dashboard, and
+    // a technician whose profile is hidden still gets to read what was already
+    // published about them.
+    return this.reviewLists(
+      { technicianId: technician.id, status: TReviewStatus.PUBLISHED },
+      query,
+      PUBLIC_REVIEW_SELECT,
+      publicReviewMapper,
     );
   }
 

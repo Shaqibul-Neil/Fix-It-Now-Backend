@@ -112,6 +112,32 @@ export const reviewPaths = {
       },
     },
   },
+  "/technician/reviews": {
+    get: {
+      tags: ["Reviews"],
+      summary: "Technician: reviews written about me",
+      description:
+        "Scoped to the caller's technician profile on the server, so the dashboard does not have to fetch its own " +
+        "profile id first.\n\n" +
+        "PUBLISHED only — the same rows the public page shows. A PENDING review has not been through moderation and a " +
+        "REJECTED one never will be; neither counts towards the rating, and neither is the technician's to read. " +
+        "There is no `status` parameter for that reason.\n\n" +
+        "Unlike the public route this does not require the profile to be APPROVED: a technician whose profile is " +
+        "hidden can still read what was already published about them.",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        ratingParam,
+        { $ref: "#/components/parameters/PageParam" },
+        { $ref: "#/components/parameters/LimitParam" },
+      ],
+      responses: {
+        "200": paginatedList("#/components/schemas/PublicReviewItem", "Paginated PUBLISHED reviews, newest first."),
+        "400": { $ref: "#/components/responses/ValidationError" },
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "403": { $ref: "#/components/responses/Forbidden" },
+      },
+    },
+  },
   "/technicians/{id}/reviews": {
     get: {
       tags: ["Reviews"],

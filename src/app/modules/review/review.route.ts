@@ -9,6 +9,7 @@ import {
   listReviewSchema,
   publicReviewListSchema,
   reviewIdParamSchema,
+  technicianReviewListSchema,
   updateReviewSchema,
   updateReviewStatusSchema,
 } from "./review.validation";
@@ -52,6 +53,16 @@ export const reviewRoute: TRouteModule = {
         validateRequest(reviewIdParamSchema),
       ),
       handler: reviewController.deleteReview,
+    },
+    // ---------------Technician----------------
+    {
+      method: "get",
+      path: "/technician/reviews",
+      middlewares: roleRoute(
+        [TRole.TECHNICIAN],
+        validateRequest(technicianReviewListSchema),
+      ),
+      handler: reviewController.getMyTechnicianReviews,
     },
     // ---------------Public----------------
     {

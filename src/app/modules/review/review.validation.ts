@@ -63,6 +63,14 @@ export const publicReviewListSchema = z.object({
   }),
 });
 
+// A technician reading the reviews written about them. No `status` either: the
+// service pins PUBLISHED, so accepting the parameter would let a client send
+// status=PENDING and get published rows back — an answer to a question it did
+// not ask.
+export const technicianReviewListSchema = z.object({
+  query: publicReviewListSchema.shape.query,
+});
+
 export type TCreateReviewPayload = z.infer<typeof createReviewSchema>["body"];
 export type TUpdateReviewPayload = z.infer<typeof updateReviewSchema>["body"];
 export type TUpdateReviewStatusPayload = z.infer<
@@ -75,4 +83,7 @@ export type TAdminListReviewQuery = z.infer<
 >["query"];
 export type TPublicReviewQuery = z.infer<
   typeof publicReviewListSchema
+>["query"];
+export type TTechnicianReviewQuery = z.infer<
+  typeof technicianReviewListSchema
 >["query"];
