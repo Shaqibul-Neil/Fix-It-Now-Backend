@@ -121,6 +121,153 @@ const BIO_TEMPLATES = [
     `Independent ${trade} professional serving ${city} for ${years} years. Transparent pricing, no charges that appear at the end, and no pressure to buy work nobody asked for. The quote I give on the phone is the quote you get on paper.\n\nIf a repair is not worth doing I will tell you that to your face and explain what is worth doing instead, even when the honest answer is the smaller invoice. I would rather lose one job than have you call somebody else next time, and that approach has kept me busy for ${years} years without ever advertising.\n\nBookings placed before noon are normally covered the same day, weekends included, and I confirm by phone so nobody waits at home guessing.`,
 ];
 
+// ---------- identity + profile detail pools ----------
+// Every column below is nullable on the model, and every technician still gets
+// one. A profile page with half its sections blank cannot tell you whether the
+// API is returning them or dropping them.
+
+// 1600px: a cover image runs the full width of the profile header, so it is the
+// one picture on the page that a 1200px file visibly softens.
+const UNSPLASH = (photoId: string): string =>
+  `https://images.unsplash.com/${photoId}?w=1600&q=80&auto=format&fit=crop`;
+
+// The banner behind the avatar. Scenery on purpose, not trade photos: the trade
+// picture is already the category image on every service card below it, and the
+// same photo twice on one screen reads as a bug rather than a design.
+const COVER_IMAGES = [
+  UNSPLASH("photo-1506905925346-21bda4d32df4"), // mountain lake
+  UNSPLASH("photo-1507525428034-b723cf961d3e"), // tropical beach
+  UNSPLASH("photo-1470071459604-3b5ec3a7fe05"), // misty forest ridge
+  UNSPLASH("photo-1500375592092-40eb2168fd21"), // sea waves
+  UNSPLASH("photo-1441974231531-c6227db76b6e"), // sunlit forest
+  UNSPLASH("photo-1519681393784-d120267933ba"), // snow mountain at night
+  UNSPLASH("photo-1501594907352-04cda38ebc29"), // ocean shoreline
+  UNSPLASH("photo-1518837695005-2083093ee35b"), // open sea from above
+  UNSPLASH("photo-1439066615861-d1af74d74000"), // coastline
+  UNSPLASH("photo-1447752875215-b2761acb3c5d"), // forest path
+  UNSPLASH("photo-1426604966848-d7adac402bff"), // valley
+  UNSPLASH("photo-1472214103451-9374bd1c798e"), // sunlit field
+  UNSPLASH("photo-1564769662533-4f00a87b4056"), // mosque interior
+  UNSPLASH("photo-1519817650390-64a93db51149"), // mosque dome
+  UNSPLASH("photo-1542816417-0983c9c9ad53"), // mosque at dusk
+  UNSPLASH("photo-1591604129939-f1efa4d9f7fa"), // prayer hall
+  UNSPLASH("photo-1545167622-3a6ac756afa4"), // temple courtyard
+  UNSPLASH("photo-1548013146-72479768bada"), // stone architecture
+];
+
+// Real onboarding uploads a scan; the seed points every row at one fixed image
+// so the admin review screen has something to actually open.
+const NID_DOCUMENT = UNSPLASH("photo-1568234928966-359c35dd8327");
+
+// 13 digits — the NID format most working-age Bangladeshis carry. Derived from
+// the index so a re-seed produces the same number and @unique keeps holding.
+function makeNationalId(index: number): string {
+  return `19${String(9000000000 + index * 137).padStart(11, "0")}`;
+}
+
+function makePassport(index: number): string {
+  return `BD${String(1000000 + index * 7).padStart(7, "0")}`;
+}
+
+// 26–45 years old, so every row clears the 18+ check the validator enforces.
+function birthDate(index: number): Date {
+  return new Date(Date.UTC(1981 + (index % 20), index % 12, (index % 27) + 1));
+}
+
+// Who the platform calls if something happens on a job.
+const EMERGENCY_CONTACTS = [
+  "Rahima Begum",
+  "Shafiqul Mia",
+  "Nasima Akter",
+  "Jahangir Alam",
+  "Rokeya Khatun",
+  "Abdul Malek",
+];
+
+// The line under the name on the card. One per trade, since a technician only
+// ever sells inside their own category.
+const PROFESSIONAL_TITLES: Record<string, string> = {
+  plumbing: "Senior Plumbing Technician",
+  electrical: "Certified Electrician",
+  cleaning: "Professional Cleaning Specialist",
+  painting: "Interior & Exterior Painter",
+  "ac-repair": "AC Service Engineer",
+  carpentry: "Furniture & Carpentry Expert",
+  "appliance-repair": "Home Appliance Technician",
+};
+
+// The sidebar counts these strings, so two technicians in the same trade have to
+// spell a skill identically — a free-text variant would split one facet in two.
+const SKILLS_BY_SLUG: Record<string, string[]> = {
+  plumbing: [
+    "Pipe fitting",
+    "Leak detection",
+    "Sanitary installation",
+    "Water tank cleaning",
+    "Drain cleaning",
+  ],
+  electrical: [
+    "House wiring",
+    "Fan & light fitting",
+    "Switchboard repair",
+    "IPS installation",
+    "Circuit fault tracing",
+  ],
+  cleaning: [
+    "Deep cleaning",
+    "Sofa shampooing",
+    "Kitchen degreasing",
+    "Bathroom sanitising",
+    "Post-renovation cleanup",
+  ],
+  painting: [
+    "Interior painting",
+    "Exterior weather coat",
+    "Putty & primer",
+    "Spray painting",
+    "Wall texture design",
+  ],
+  "ac-repair": [
+    "AC servicing",
+    "Gas refilling",
+    "Split AC installation",
+    "Compressor repair",
+    "Duct cleaning",
+  ],
+  carpentry: [
+    "Furniture repair",
+    "Door fitting",
+    "Cabinet making",
+    "Wood polishing",
+    "Lock installation",
+  ],
+  "appliance-repair": [
+    "Fridge repair",
+    "Washing machine repair",
+    "Microwave repair",
+    "Oven servicing",
+    "Water pump repair",
+  ],
+};
+
+// One sentence under the professional title.
+const TAGLINES = [
+  "Fixed right the first time, or I come back for free.",
+  "Fixed quote before I start — nothing new appears on the bill.",
+  "Same-day call-outs across the city, seven days a week.",
+  "Most of my work comes from customers who called me before.",
+];
+
+// The display-only checklist on the profile page. Nothing filters on these.
+const WORK_HIGHLIGHTS = [
+  "Own tools and a stocked parts box",
+  "Written warranty on every repair",
+  "Fixed quote agreed before work starts",
+  "Site swept before I pack up",
+  "Reachable by phone after the visit",
+  "Emergency call-outs covered same day",
+];
+
 // ---------- which shelf each published service ends up on ----------
 // Services are numbered in creation order across every technician, and these
 // three sets say what happens to each number. Spreading them by slot instead of
@@ -259,6 +406,14 @@ export async function seedTechnicians(
     const { approvalStatus, userStatus, isRemoved } = bucketFor(i);
     const isBanned = userStatus === TUserStatus.BANNED;
 
+    // Title and skills follow the trade, so they are looked up rather than
+    // picked at random — an electrician must never come out "Senior Plumber".
+    const professionalTitle = PROFESSIONAL_TITLES[category.slug];
+    const tradeSkills = SKILLS_BY_SLUG[category.slug];
+    if (!professionalTitle || !tradeSkills) {
+      throw new Error(`Seed error: no profile details for "${category.slug}"`);
+    }
+
     const experienceYears = randomInt(2, 15);
     const bioTemplate = pick(BIO_TEMPLATES, i % BIO_TEMPLATES.length);
 
@@ -296,6 +451,25 @@ export async function seedTechnicians(
             // Every technician gets one: a card with a face next to one with a
             // grey circle reads as a broken image rather than a design choice.
             avatar: makeAvatar("men", i),
+            coverImage: pick(COVER_IMAGES, i % COVER_IMAGES.length),
+            // Identity. Filled for every bucket, not only the approved ones —
+            // the admin review screen exists to look at a PENDING applicant's
+            // documents, so a PENDING row with no documents tests nothing.
+            nationalId: makeNationalId(i),
+            nidDocument: NID_DOCUMENT,
+            passportNumber: makePassport(i),
+            dateOfBirth: birthDate(i),
+            emergencyContactName: pick(
+              EMERGENCY_CONTACTS,
+              i % EMERGENCY_CONTACTS.length,
+            ),
+            emergencyContactPhone: makePhone("0191", i + 1),
+            professionalTitle,
+            tagline: pick(TAGLINES, i % TAGLINES.length),
+            // Three of the five trade skills, offset per technician, so the
+            // sidebar facet counts differ instead of every box reading the same.
+            skills: pickMany(tradeSkills, 3, i % tradeSkills.length),
+            workHighlights: pickMany(WORK_HIGHLIGHTS, 4, i % WORK_HIGHLIGHTS.length),
             bio: bioTemplate(
               experienceYears,
               category.name.toLowerCase(),
@@ -315,6 +489,14 @@ export async function seedTechnicians(
               approvalStatus === TTechnicianApprovalStatus.APPROVED && canSignIn
                 ? chance(85)
                 : false,
+            // updateFeaturedStatus refuses to feature anyone who is not
+            // approved, so the seed must not write a row the API itself would
+            // have rejected. Five of the twenty approved get the spotlight.
+            isFeatured:
+              approvalStatus === TTechnicianApprovalStatus.APPROVED &&
+              canSignIn &&
+              i % 4 === 0,
+            offersEmergencyService: chance(40),
             approvalStatus,
             rejectionReason: isRejected
               ? pick(REJECTION_REASONS, i % REJECTION_REASONS.length)

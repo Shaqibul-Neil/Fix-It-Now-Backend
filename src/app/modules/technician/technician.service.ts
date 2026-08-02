@@ -1,17 +1,23 @@
 import httpStatus from "http-status";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
-import type {
-  TAdminListTechniciansQuery,
-  TCreateTechnicianProfilePayload,
-  TListTechniciansQuery,
-  TReviewTechnicianPayload,
-  TUpdateAvailabilityStatusPayload,
-  TUpdateTechnicianProfilePayload,
+import {
+  PRICE_BUCKET,
+  TECHNICIAN_SORT,
+  type TAdminListTechniciansQuery,
+  type TCreateTechnicianProfilePayload,
+  type TListTechniciansQuery,
+  type TReviewTechnicianPayload,
+  type TUpdateAvailabilityStatusPayload,
+  type TUpdateFeaturedStatusPayload,
+  type TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
 import {
   buildAdminTechnicianFilter,
+  buildAdminTechnicianOrderBy,
   buildTechnicianFilter,
+  buildTechnicianOrderBy,
+  tallyValues,
 } from "./technician.utils";
 import {
   createFullName,
@@ -24,6 +30,7 @@ import {
   PUBLIC_TECHNICIAN_WHERE,
   TECHNICIAN_AVAILABILITY_SELECT,
   TECHNICIAN_DETAILS_SELECT,
+  TECHNICIAN_FEATURED_SELECT,
   TECHNICIAN_LIST_SELECT,
   TECHNICIAN_MY_PROFILE_INCLUDE,
   TECHNICIAN_PROFILE_WITH_USER_INCLUDE,
@@ -47,6 +54,7 @@ import {
 } from "./technician.mapper";
 import { getBookingStatusBreakdown } from "../booking/booking.model";
 import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
+import { LIVE_ONLY } from "../../../utils/recordStatus";
 
 export class TechnicianService {
   //-------------------------------------------
@@ -57,22 +65,43 @@ export class TechnicianService {
     userId: string,
     payload: TCreateTechnicianProfilePayload,
   ) {
-    const { basicInfo, pricing, location } = payload;
+    const { basicInfo, identity, pricing, location, profileDetails } = payload;
 
     await ensureNoTechnicianProfile(userId);
+
+    const duplicateNid = await prisma.technicianProfile.findUnique({
+      where: { nationalId: identity.nationalId },
+      select: { id: true },
+    });
+
+    if (duplicateNid) {
+      throw new AppError(
+        "This National ID is already registered to another technician.",
+        httpStatus.CONFLICT,
+      );
+    }
 
     const profile = await prisma.technicianProfile.create({
       data: {
         userId,
         phone: basicInfo.phone,
         avatar: basicInfo.avatar,
+        coverImage: basicInfo.coverImage,
         bio: basicInfo.bio,
         experienceYears: basicInfo.experienceYears,
+        nationalId: identity.nationalId,
+        nidDocument: identity.nidDocument,
+        passportNumber: identity.passportNumber,
+        dateOfBirth: identity.dateOfBirth,
+        emergencyContactName: identity.emergencyContactName,
+        emergencyContactPhone: identity.emergencyContactPhone,
         hourlyRate: pricing.hourlyRate,
         serviceRadius: pricing.serviceRadius,
+        offersEmergencyService: pricing.offersEmergencyService,
         address: location.address,
         city: location.city,
         area: location.area,
+        ...(profileDetails ?? {}),
         isProfileComplete: true,
       },
       include: TECHNICIAN_PROFILE_WITH_USER_INCLUDE,
@@ -96,13 +125,26 @@ export class TechnicianService {
     payload: TUpdateTechnicianProfilePayload,
   ) {
     const existing = await findTechnicianProfileByUserId(userId);
-    const { basicInfo, pricing, location } = payload;
+    const { basicInfo, identity, pricing, location, profileDetails } = payload;
+
+    // Identity is the one group that stops being editable. An approved technician swapping their NID would keep a badge an admin gave to a different person.
+    if (
+      identity &&
+      existing.approvalStatus === TTechnicianApprovalStatus.APPROVED
+    ) {
+      throw new AppError(
+        "Identity details cannot be changed after approval. Contact support.",
+        httpStatus.FORBIDDEN,
+      );
+    }
 
     //if no data is sent
     const data = {
       ...(basicInfo ?? {}),
+      ...(identity ?? {}),
       ...(pricing ?? {}),
       ...(location ?? {}),
+      ...(profileDetails ?? {}),
     };
     ensureNotEmptyObject(data);
 
@@ -190,9 +232,7 @@ export class TechnicianService {
         where,
         skip,
         take: limit,
-        orderBy: {
-          averageRating: "desc",
-        },
+        orderBy: buildTechnicianOrderBy(query.sort),
         select: TECHNICIAN_LIST_SELECT,
       }),
       prisma.technicianProfile.count({ where }),
@@ -201,6 +241,51 @@ export class TechnicianService {
     return {
       items: items.map(technicianListMapper),
       meta: { page, limit, total },
+    };
+  }
+
+  //-------------------------------------------
+  //--------------Public: filter sidebar counts----------
+  //-------------------------------------------
+  async getFilterFacets() {
+    const publicWhere = buildTechnicianFilter({});
+
+    const categories = await prisma.category.findMany({
+      where: LIVE_ONLY,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, slug: true },
+    });
+    // One count per category instead of a groupBy: groupBy would count services,
+    // and a technician with three plumbing services is still one technician.
+    const categoryCounts = await prisma.$transaction(
+      categories.map((category) =>
+        prisma.technicianProfile.count({
+          where: {
+            ...publicWhere,
+            services: {
+              some: {
+                categoryId: category.id,
+                isActive: true,
+                deletedAt: null,
+              },
+            },
+          },
+        }),
+      ),
+    );
+
+    const rows = await prisma.technicianProfile.findMany({
+      where: publicWhere,
+      select: { skills: true },
+    });
+    return {
+      categories: categories.map((category, index) => ({
+        ...category,
+        count: categoryCounts[index] ?? 0,
+      })),
+      skills: tallyValues(rows.map((row) => row.skills)),
+      priceBuckets: PRICE_BUCKET,
+      sortOptions: TECHNICIAN_SORT,
     };
   }
 
@@ -230,10 +315,7 @@ export class TechnicianService {
         where,
         skip,
         take: limit,
-        orderBy:
-          query.approvalStatus === TTechnicianApprovalStatus.PENDING
-            ? { createdAt: "asc" }
-            : { averageRating: "desc" },
+        orderBy: buildAdminTechnicianOrderBy(query.approvalStatus),
         select: ADMIN_TECHNICIAN_LIST_SELECT,
       }),
       prisma.technicianProfile.count({ where }),
@@ -313,6 +395,33 @@ export class TechnicianService {
     }
 
     return profile;
+  }
+
+  //-------------------------------------------
+  //--------------ADMIN: promote / demote on the public list-------------
+  //-------------------------------------------
+  async updateFeaturedStatus(
+    technicianId: string,
+    payload: TUpdateFeaturedStatusPayload,
+  ) {
+    const technician = await findTechnicianProfileById(technicianId);
+
+    // Featuring an unapproved technician would put a card on the home page for
+    // someone the public list itself filters out.
+    if (
+      payload.isFeatured &&
+      technician.approvalStatus !== TTechnicianApprovalStatus.APPROVED
+    ) {
+      throw new AppError(
+        "Only an approved technician can be featured.",
+        httpStatus.CONFLICT,
+      );
+    }
+    return prisma.technicianProfile.update({
+      where: { id: technicianId },
+      data: { isFeatured: payload.isFeatured },
+      select: TECHNICIAN_FEATURED_SELECT,
+    });
   }
 }
 

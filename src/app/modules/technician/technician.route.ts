@@ -11,6 +11,7 @@ import {
   reviewTechnicianSchema,
   technicianIdParamSchema,
   updateAvailabilityStatusSchema,
+  updateFeaturedStatusSchema,
   updateTechnicianProfileSchema,
 } from "./technician.validation";
 
@@ -61,6 +62,12 @@ export const technicianRoute: TRouteModule = {
     },
     {
       method: "get",
+      path: "/filters",
+      middlewares: [],
+      handler: technicianController.getFilterFacets,
+    },
+    {
+      method: "get",
       path: "/:id",
       middlewares: [validateRequest(technicianIdParamSchema)],
       handler: technicianController.getTechnicianById,
@@ -99,6 +106,15 @@ export const technicianRoute: TRouteModule = {
         validateRequest(reviewTechnicianSchema),
       ),
       handler: technicianController.reviewTechnician,
+    },
+    {
+      method: "patch",
+      path: "/admin/:id/featured",
+      middlewares: roleRoute(
+        [TRole.ADMIN],
+        validateRequest(updateFeaturedStatusSchema),
+      ),
+      handler: technicianController.updateFeaturedStatus,
     },
   ],
 };

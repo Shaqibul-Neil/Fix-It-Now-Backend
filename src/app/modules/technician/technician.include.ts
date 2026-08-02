@@ -19,7 +19,7 @@ export const PUBLIC_TECHNICIAN_WHERE = {
   users: { status: TUserStatus.ACTIVE, deletedAt: null },
 } as const satisfies Prisma.TechnicianProfileWhereInput;
 
-export const TECHNICIAN_LIST_SELECT = {
+export const TECHNICIAN_ROW_SELECT = {
   id: true,
   avatar: true,
   experienceYears: true,
@@ -37,10 +37,34 @@ export const TECHNICIAN_LIST_SELECT = {
   },
 } as const satisfies Prisma.TechnicianProfileSelect;
 
+export const TECHNICIAN_LIST_SELECT = {
+  ...TECHNICIAN_ROW_SELECT,
+  bio: true,
+  professionalTitle: true,
+  skills: true,
+  isFeatured: true,
+  isAvailable: true,
+  offersEmergencyService: true,
+  services: {
+    where: LIVE_ONLY,
+    take: 5,
+    orderBy: { price: "asc" },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      category: { select: { name: true } },
+    },
+  },
+} as const satisfies Prisma.TechnicianProfileSelect;
+
 export const TECHNICIAN_DETAILS_SELECT = {
   id: true,
   bio: true,
   avatar: true,
+  coverImage: true,
+  professionalTitle: true,
+  tagline: true,
   experienceYears: true,
   hourlyRate: true,
   serviceRadius: true,
@@ -48,6 +72,12 @@ export const TECHNICIAN_DETAILS_SELECT = {
   area: true,
   averageRating: true,
   totalReviews: true,
+  isAvailable: true,
+  isFeatured: true,
+  offersEmergencyService: true,
+  skills: true,
+  workHighlights: true,
+  approvalStatus: true,
   users: {
     select: {
       firstName: true,
@@ -61,9 +91,11 @@ export const TECHNICIAN_DETAILS_SELECT = {
       id: true,
       title: true,
       price: true,
+      estimatedDuration: true,
       category: {
         select: {
           name: true,
+          image: true,
         },
       },
     },
@@ -91,6 +123,12 @@ export const TECHNICIAN_AVAILABILITY_SELECT = {
   isAvailable: true,
 } as const satisfies Prisma.TechnicianProfileSelect;
 
+// the spotlight switch on its own
+export const TECHNICIAN_FEATURED_SELECT = {
+  id: true,
+  isFeatured: true,
+} as const satisfies Prisma.TechnicianProfileSelect;
+
 // profile + owner name — for create/update responses
 export const TECHNICIAN_PROFILE_WITH_USER_INCLUDE = {
   users: {
@@ -115,8 +153,9 @@ export const TECHNICIAN_MY_PROFILE_INCLUDE = {
 
 // admin table: summary + completed-jobs count
 export const ADMIN_TECHNICIAN_LIST_SELECT = {
-  ...TECHNICIAN_LIST_SELECT,
+  ...TECHNICIAN_ROW_SELECT,
   phone: true,
+  isFeatured: true,
   approvalStatus: true,
   rejectionReason: true,
   reviewedAt: true,
@@ -139,10 +178,20 @@ export const ADMIN_TECHNICIAN_LIST_SELECT = {
 export const ADMIN_TECHNICIAN_DETAILS_SELECT = {
   ...TECHNICIAN_DETAILS_SELECT,
   phone: true,
+  address: true,
+  nationalId: true,
+  nidDocument: true,
+  passportNumber: true,
+  dateOfBirth: true,
+  emergencyContactName: true,
+  emergencyContactPhone: true,
+  isProfileComplete: true,
   approvalStatus: true,
   rejectionReason: true,
   reviewedAt: true,
+  reviewedBy: true,
   createdAt: true,
+  updatedAt: true,
   users: {
     select: {
       id: true,
@@ -153,16 +202,21 @@ export const ADMIN_TECHNICIAN_DETAILS_SELECT = {
       deletedAt: true,
     },
   },
+  // No `where`: an admin looking at a technician has to see the paused and the
+  // removed services too — those are the rows a complaint is usually about.
   services: {
+    orderBy: { createdAt: "desc" },
     select: {
       id: true,
       title: true,
       price: true,
+      estimatedDuration: true,
       isActive: true,
       deletedAt: true,
       category: {
         select: {
           name: true,
+          image: true,
         },
       },
     },

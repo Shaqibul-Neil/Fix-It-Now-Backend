@@ -1,4 +1,7 @@
-import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  TTechnicianApprovalStatus,
+  type Prisma,
+} from "../../../../generated/prisma/client";
 import { toParagraphs } from "../../../utils/utils";
 import { publicReviewMapper } from "../review/review.mapper";
 import type {
@@ -6,12 +9,13 @@ import type {
   ADMIN_TECHNICIAN_LIST_SELECT,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
+  TECHNICIAN_ROW_SELECT,
 } from "./technician.include";
 
 // list row — flatten owner name
-export const technicianListMapper = (
+export const technicianRowMapper = (
   technician: Prisma.TechnicianProfileGetPayload<{
-    select: typeof TECHNICIAN_LIST_SELECT;
+    select: typeof TECHNICIAN_ROW_SELECT;
   }>,
 ) => ({
   id: technician.id,
@@ -25,6 +29,26 @@ export const technicianListMapper = (
   area: technician.area,
   averageRating: technician.averageRating,
   totalReviews: technician.totalReviews,
+});
+
+export const technicianListMapper = (
+  technician: Prisma.TechnicianProfileGetPayload<{
+    select: typeof TECHNICIAN_LIST_SELECT;
+  }>,
+) => ({
+  ...technicianRowMapper(technician),
+  bio: technician.bio,
+  isFeatured: technician.isFeatured,
+  professionalTitle: technician.professionalTitle,
+  skills: technician.skills,
+  isAvailable: technician.isAvailable,
+  offersEmergencyService: technician.offersEmergencyService,
+  services: technician.services.map((service) => ({
+    id: service.id,
+    title: service.title,
+    price: service.price,
+    category: service.category.name,
+  })),
 });
 
 // details — flatten owner name + flatten each service's category
@@ -38,6 +62,10 @@ export const technicianDetailsMapper = (
   lastName: technician.users.lastName,
   email: technician.users.email,
   avatar: technician.avatar,
+  coverImage: technician.coverImage,
+  professionalTitle: technician.professionalTitle,
+  tagline: technician.tagline,
+  isVerified: technician.approvalStatus === TTechnicianApprovalStatus.APPROVED,
   bio: toParagraphs(technician.bio),
   experienceYears: technician.experienceYears,
   hourlyRate: technician.hourlyRate,
@@ -46,15 +74,20 @@ export const technicianDetailsMapper = (
   area: technician.area,
   averageRating: technician.averageRating,
   totalReviews: technician.totalReviews,
+  isAvailable: technician.isAvailable,
+  isFeatured: technician.isFeatured,
+  offersEmergencyService: technician.offersEmergencyService,
+  skills: technician.skills,
+  workHighlights: technician.workHighlights,
   services: technician.services.map((service) => ({
     id: service.id,
     title: service.title,
     price: service.price,
+    estimatedDuration: service.estimatedDuration,
     category: service.category.name,
+    categoryImage: service.category.image,
   })),
   reviews: technician.reviews.map(publicReviewMapper),
-  // Renamed off the relation: the page shows "when they work", and nothing on
-  // the client cares that a row of the slot table is behind it.
   availability: technician.availabilitySlots,
 });
 
@@ -67,8 +100,9 @@ export const technicianAdminListMapper = (
   const { _count, ...rest } = technician;
 
   return {
-    ...technicianListMapper(rest),
+    ...technicianRowMapper(rest),
     phone: technician.phone,
+    isFeatured: technician.isFeatured,
     approvalStatus: technician.approvalStatus,
     rejectionReason: technician.rejectionReason,
     reviewedAt: technician.reviewedAt,
@@ -93,7 +127,11 @@ export const technicianAdminDetailsMapper = (
   lastName: technician.users.lastName,
   email: technician.users.email,
   phone: technician.phone,
+  address: technician.address,
   avatar: technician.avatar,
+  coverImage: technician.coverImage,
+  professionalTitle: technician.professionalTitle,
+  tagline: technician.tagline,
   bio: toParagraphs(technician.bio),
   experienceYears: technician.experienceYears,
   hourlyRate: technician.hourlyRate,
@@ -102,17 +140,38 @@ export const technicianAdminDetailsMapper = (
   area: technician.area,
   averageRating: technician.averageRating,
   totalReviews: technician.totalReviews,
+  isAvailable: technician.isAvailable,
+  isFeatured: technician.isFeatured,
+  isProfileComplete: technician.isProfileComplete,
+  offersEmergencyService: technician.offersEmergencyService,
+  skills: technician.skills,
+  workHighlights: technician.workHighlights,
+  // What the admin checks before approving, and who to call if a job goes
+  // wrong. Grouped so it is obvious this block has no business in a public
+  // select — the public details endpoint has its own narrower one.
+  identity: {
+    nationalId: technician.nationalId,
+    nidDocument: technician.nidDocument,
+    passportNumber: technician.passportNumber,
+    dateOfBirth: technician.dateOfBirth,
+    emergencyContactName: technician.emergencyContactName,
+    emergencyContactPhone: technician.emergencyContactPhone,
+  },
   approvalStatus: technician.approvalStatus,
   rejectionReason: technician.rejectionReason,
   reviewedAt: technician.reviewedAt,
+  reviewedBy: technician.reviewedBy,
   appliedAt: technician.createdAt,
+  updatedAt: technician.updatedAt,
   accountStatus: technician.users.status,
   isDeleted: Boolean(technician.users.deletedAt),
   services: technician.services.map((service) => ({
     id: service.id,
     title: service.title,
     price: service.price,
+    estimatedDuration: service.estimatedDuration,
     category: service.category.name,
+    categoryImage: service.category.image,
     isActive: service.isActive,
     isDeleted: Boolean(service.deletedAt),
   })),

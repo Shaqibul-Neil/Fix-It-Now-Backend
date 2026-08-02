@@ -1,23 +1,44 @@
 model TechnicianProfile {
-  id                String                    @id @default(uuid()) @db.Uuid
-  userId            String                    @unique @map("user_id") @db.Uuid
-  phone             String                    @unique @db.VarChar(20)
-  avatar            String?                   @db.Text
-  bio               String                    @db.Text
-  experienceYears   Int                       @map("experience_years")
-  hourlyRate        Decimal                   @map("hourly_rate") @db.Decimal(10, 2)
-  address           String                    @db.Text
-  city              String                    @db.VarChar(100)
-  area              String                    @db.VarChar(100)
-  isProfileComplete Boolean                   @default(false) @map("is_profile_complete")
-  serviceRadius     Int?                      @map("service_radius")
-  averageRating     Decimal                   @default(0) @map("average_rating") @db.Decimal(3, 2)
-  totalReviews      Int                       @default(0) @map("total_reviews")
-  isAvailable       Boolean                   @default(true) @map("is_available")
-  approvalStatus    TTechnicianApprovalStatus @default(PENDING) @map("approval_status")
-  rejectionReason   String?                   @map("rejection_reason") @db.Text
-  reviewedAt        DateTime?                 @map("reviewed_at")
-  reviewedBy        String?                   @map("reviewed_by") @db.Uuid
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+  phone  String @unique @db.VarChar(20)
+
+  nationalId     String    @unique @map("national_id") @db.VarChar(20)
+  nidDocument    String?   @map("nid_document") @db.Text
+  passportNumber String?   @unique @map("passport_number") @db.VarChar(20)
+  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
+
+  emergencyContactName  String? @map("emergency_contact_name") @db.VarChar(100)
+  emergencyContactPhone String? @map("emergency_contact_phone") @db.VarChar(20)
+
+  avatar            String? @db.Text
+  coverImage        String? @map("cover_image") @db.Text
+  professionalTitle String? @map("professional_title") @db.VarChar(120)
+  tagline           String? @db.Text
+  bio               String  @db.Text
+
+  skills          String[] @default([])
+  workHighlights  String[] @default([]) @map("work_highlights")
+  experienceYears Int      @map("experience_years")
+  hourlyRate      Decimal  @map("hourly_rate") @db.Decimal(10, 2)
+
+  address       String @db.Text
+  city          String @db.VarChar(100)
+  area          String @db.VarChar(100)
+  serviceRadius Int?   @map("service_radius")
+
+  averageRating Decimal @default(0) @map("average_rating") @db.Decimal(3, 2)
+  totalReviews  Int     @default(0) @map("total_reviews")
+
+  isProfileComplete      Boolean @default(false) @map("is_profile_complete")
+  isAvailable            Boolean @default(true) @map("is_available")
+  isFeatured             Boolean @default(false) @map("is_featured")
+  offersEmergencyService Boolean @default(false) @map("offers_emergency_service")
+
+  approvalStatus  TTechnicianApprovalStatus @default(PENDING) @map("approval_status")
+  rejectionReason String?                   @map("rejection_reason") @db.Text
+  reviewedAt      DateTime?                 @map("reviewed_at")
+  reviewedBy      String?                   @map("reviewed_by") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -31,5 +52,7 @@ model TechnicianProfile {
 
   @@index([city, area])
   @@index([approvalStatus])
+  @@index([isFeatured, averageRating])
+  @@index([hourlyRate])
   @@map("technician_profiles")
 }

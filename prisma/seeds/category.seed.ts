@@ -21,8 +21,10 @@ export interface SeededCategories {
 // visible immediately. These are direct Unsplash CDN files (no API key, no
 // redirect) and each one was opened and checked against its own trade before
 // being written down — a plumbing card never shows a paint roller.
+// 1200px wide, not 800: the same file is also the hero on the category page and
+// behind a retina card, so 800 was already being upscaled.
 const UNSPLASH = (photoId: string): string =>
-  `https://images.unsplash.com/${photoId}?w=800&q=80&auto=format&fit=crop`;
+  `https://images.unsplash.com/${photoId}?w=1200&q=80&auto=format&fit=crop`;
 
 // One row per trade. `Booking.categoryName` is a snapshot string, so the names
 // here are what the booking history and the category breakdown chart show.

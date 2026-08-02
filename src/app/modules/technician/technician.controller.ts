@@ -11,6 +11,7 @@ import type {
   TListTechniciansQuery,
   TReviewTechnicianPayload,
   TUpdateAvailabilityStatusPayload,
+  TUpdateFeaturedStatusPayload,
   TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
 import { sendResponse } from "../../../utils/sendResponse";
@@ -116,6 +117,18 @@ class TechnicianController {
     });
   });
 
+  //--------------Public: filter sidebar counts-------------
+  getFilterFacets = asyncHandler(async (_req: TRequest, res: TResponse) => {
+    const facets = await this.technicianService.getFilterFacets();
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Filter options fetched successfully",
+      data: facets,
+    });
+  });
+
   //--------------Admin: technician list-------------
   getAllTechniciansForAdmin = asyncHandler(
     async (req: TRequest, res: TResponse) => {
@@ -166,6 +179,25 @@ class TechnicianController {
         payload.status === TTechnicianApprovalStatus.APPROVED
           ? "Technician approved successfully"
           : "Technician rejected successfully",
+      data: profile,
+    });
+  });
+
+  //--------------Admin: promote / demote on the public list-------------
+  updateFeaturedStatus = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const payload = req.body as TUpdateFeaturedStatusPayload;
+    const profile = await this.technicianService.updateFeaturedStatus(
+      req.params.id as string,
+      payload,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: payload.isFeatured
+        ? "Technician is now featured"
+        : "Technician removed from featured",
       data: profile,
     });
   });
