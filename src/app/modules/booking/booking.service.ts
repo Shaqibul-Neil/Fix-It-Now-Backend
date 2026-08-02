@@ -196,6 +196,7 @@ export class BookingService {
         technicianId: service.technicianId,
         serviceId: service.id,
         amount: service.price,
+        categoryId: service.categoryId,
         categoryName: service.category.name,
         address: payload.address,
         city: payload.city,
@@ -411,7 +412,14 @@ export class BookingService {
     // Timestamp handling
     const timestamps: Prisma.BookingUpdateInput = {};
     if (payload.status === TBookingStatus.ACCEPTED) {
-      timestamps.acceptedAt = new Date();
+      const acceptedAt = new Date();
+      timestamps.acceptedAt = acceptedAt;
+      timestamps.responseMinutes = Math.max(
+        0,
+        Math.round(
+          (acceptedAt.getTime() - booking.createdAt.getTime()) / 60000,
+        ),
+      );
     }
     if (payload.status === TBookingStatus.COMPLETED) {
       timestamps.completedAt = new Date();

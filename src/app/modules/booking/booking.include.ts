@@ -209,6 +209,7 @@ export const BOOKING_CREATE_SERVICE_SELECT = {
   deletedAt: true,
   price: true,
   technicianId: true,
+  categoryId: true,
   technician: {
     select: {
       userId: true,
@@ -254,6 +255,7 @@ export const BOOKING_STATUS_UPDATE_SELECT = {
   technicianId: true,
   status: true,
   amount: true,
+  createdAt: true,
   customer: { select: { userId: true } },
   technician: {
     select: { users: { select: { firstName: true, lastName: true } } },

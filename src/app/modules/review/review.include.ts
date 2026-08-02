@@ -30,6 +30,7 @@ export const REVIEW_BOOKING_SELECT = {
   customerId: true,
   technicianId: true,
   serviceId: true,
+  categoryId: true,
   status: true,
   review: {
     select: {

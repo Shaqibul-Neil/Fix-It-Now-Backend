@@ -9,21 +9,45 @@ import {
 import type {
   TCreateCategoryPayload,
   TListCategoryAdminQuery,
+  TListCategoryPublicQuery,
   TUpdateCategoryPayload,
 } from "./category.validation";
 import {
   ADMIN_CATEGORY_SELECT,
   CATEGORY_NAME_CONFLICT_SELECT,
   CATEGORY_WRITE_SELECT,
+  PUBLIC_CATEGORY_DETAILS_SELECT,
   PUBLIC_CATEGORY_SELECT,
 } from "./category.include";
-import { categoryAdminMapper } from "./category.mapper";
+import {
+  categoryAdminMapper,
+  categoryCardMapper,
+  categoryDetailsMapper,
+  categoryTopServiceMapper,
+  categoryTopTechnicianMapper,
+} from "./category.mapper";
 import { LIVE_ONLY } from "../../../utils/recordStatus";
 import { buildCategoryFilter } from "./category.utils";
 import {
   notifyCategoryDeactivated,
   notifyCategoryReactivated,
 } from "../notification/notification.events";
+import {
+  findCategoryServicesByIds,
+  findCategoryTechnicians,
+  findCheapestCategoryServices,
+  findLiveCategories,
+  findLiveCategoryBySlug,
+  getCompletedJobsByTechnician,
+} from "./category.model";
+import { buildCategoryStats, EMPTY_CATEGORY_STATS } from "./category.stats";
+import type {
+  IRankedService,
+  TCategoryTechnicianRow,
+} from "./category.interface";
+
+const TOP_TECHNICIAN_LIMIT = 6;
+const TOP_SERVICE_LIMIT = 6;
 
 export class CategoryService {
   //----------Category Must Exist----------
@@ -70,6 +94,58 @@ export class CategoryService {
     );
   }
 
+  //----------Jobs each shown technician finished here----------
+  private async attachCompletedJobs(
+    categoryId: string,
+    technicians: TCategoryTechnicianRow[],
+  ) {
+    if (technicians.length === 0) return [];
+
+    const completed = await getCompletedJobsByTechnician(
+      categoryId,
+      technicians.map((technician) => technician.id),
+    );
+
+    const jobCounts = new Map(
+      completed.map((row) => [row.technicianId, row._count._all]),
+    );
+
+    return technicians.map((technician) =>
+      categoryTopTechnicianMapper(
+        technician,
+        jobCounts.get(technician.id) ?? 0,
+      ),
+    );
+  }
+
+  //----------The services strip on the landing page----------
+  private async buildTopServices(
+    categoryId: string,
+    rankedServices: IRankedService[],
+  ) {
+    const bookingCounts = new Map(
+      rankedServices
+        .slice(0, TOP_SERVICE_LIMIT)
+        .map((row) => [row.serviceId, row.totalBookings]),
+    );
+    const rankedIds = [...bookingCounts.keys()];
+
+    const [rankedRows, fillerRows] = await Promise.all([
+      findCategoryServicesByIds(categoryId, rankedIds),
+      findCheapestCategoryServices(categoryId, rankedIds, TOP_SERVICE_LIMIT),
+    ]);
+    // The ranked rows come back in id order, so the booking counts put them back into the order they were picked in.
+    const ordered = rankedRows.sort(
+      (a, b) => (bookingCounts.get(b.id) ?? 0) - (bookingCounts.get(a.id) ?? 0),
+    );
+
+    return [...ordered, ...fillerRows]
+      .slice(0, TOP_SERVICE_LIMIT)
+      .map((service) =>
+        categoryTopServiceMapper(service, bookingCounts.get(service.id) ?? 0),
+      );
+  }
+
   //----------Who Loses Visibility----------
   private async findTechniciansAffectedByCategory(categoryId: string) {
     const affectedServices = await prisma.service.findMany({
@@ -101,7 +177,11 @@ export class CategoryService {
         name: payload.name,
         slug,
         description: payload.description,
+        overview: payload.overview,
+        tagline: payload.tagline,
+        commonIssues: payload.commonIssues,
         image: payload.image,
+        coverImage: payload.coverImage,
         isActive: payload.isActive,
       },
       select: ADMIN_CATEGORY_SELECT,
@@ -254,13 +334,72 @@ export class CategoryService {
   //------------------PUBLIC---------------
   //---------------All Category--------------
   //-------------------------------------------
-  async getAllCategories() {
-    return prisma.category.findMany({
-      where: LIVE_ONLY,
-      orderBy: {
-        name: "asc",
-      },
-      select: PUBLIC_CATEGORY_SELECT,
+  async getAllCategories(query: TListCategoryPublicQuery) {
+    const categories = await findLiveCategories();
+    if (categories.length === 0) return [];
+
+    const stats = await buildCategoryStats(
+      categories.map((category) => category.id),
+    );
+
+    const cards = categories.map((category) =>
+      categoryCardMapper(
+        category,
+        stats.get(category.id) ?? EMPTY_CATEGORY_STATS,
+      ),
+    );
+
+    if (query.sort === "popular") {
+      const bookings = (categoryId: string) =>
+        stats.get(categoryId)?.totalBookings ?? 0;
+
+      cards.sort(
+        (a, b) =>
+          bookings(b.id) - bookings(a.id) ||
+          b.serviceCount - a.serviceCount ||
+          a.name.localeCompare(b.name),
+      );
+    }
+
+    if (query.sort === "trending") {
+      cards.sort(
+        (a, b) =>
+          Number(b.isTrending) - Number(a.isTrending) ||
+          b.serviceCount - a.serviceCount ||
+          a.name.localeCompare(b.name),
+      );
+    }
+
+    return query.limit ? cards.slice(0, query.limit) : cards;
+  }
+  //-------------------------------------------
+  //--------------Category details-------------
+  //-------------------------------------------
+  async getCategoryBySlug(slug: string) {
+    const category = await findLiveCategoryBySlug(generateSlug(slug));
+
+    if (!category) {
+      throw new AppError("Category not found.", httpStatus.NOT_FOUND);
+    }
+
+    const statsByCategory = await buildCategoryStats([category.id]);
+    const stats = statsByCategory.get(category.id) ?? EMPTY_CATEGORY_STATS;
+
+    const [technicians, topServices] = await Promise.all([
+      findCategoryTechnicians(category.id, TOP_TECHNICIAN_LIMIT),
+      this.buildTopServices(category.id, stats.rankedServices),
+    ]);
+
+    const topTechnicians = await this.attachCompletedJobs(
+      category.id,
+      technicians,
+    );
+
+    return categoryDetailsMapper({
+      category,
+      stats,
+      topTechnicians,
+      topServices,
     });
   }
 }

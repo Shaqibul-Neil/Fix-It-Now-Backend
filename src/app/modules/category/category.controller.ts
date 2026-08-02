@@ -6,6 +6,7 @@ import { categoryService, type CategoryService } from "./category.service";
 import type {
   TCreateCategoryPayload,
   TListCategoryAdminQuery,
+  TListCategoryPublicQuery,
   TUpdateCategoryPayload,
 } from "./category.validation";
 
@@ -112,7 +113,8 @@ class CategoryController {
   //------------------PUBLIC---------------
   //---------------All Category--------------
   getCategories = asyncHandler(async (req: TRequest, res: TResponse) => {
-    const categories = await this.categoryService.getAllCategories();
+    const query = req.query as TListCategoryPublicQuery;
+    const categories = await this.categoryService.getAllCategories(query);
 
     sendResponse({
       res,
@@ -120,6 +122,20 @@ class CategoryController {
       success: true,
       message: "Categories fetched successfully",
       data: categories,
+    });
+  });
+
+  //--------------Public: category detail-------------
+  getCategoryBySlug = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const slug = req.params.slug as string;
+    const category = await this.categoryService.getCategoryBySlug(slug);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Category retrieved successfully",
+      data: category,
     });
   });
 }

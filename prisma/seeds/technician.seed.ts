@@ -22,6 +22,10 @@ export interface SeededService {
   id: string;
   title: string;
   price: number;
+  // Both are carried, because a booking stores both: the id so the category
+  // page can aggregate, the name so the booking history keeps reading right
+  // even after a category is renamed.
+  categoryId: string;
   categoryName: string;
   // null while the row is still there — "owner" and "admin" say who pressed
   // remove, which is what decides whether the technician may put it back.
@@ -560,6 +564,7 @@ export async function seedTechnicians(
         id: created.id,
         title: item.title,
         price: item.price,
+        categoryId: category.id,
         categoryName: category.name,
         removedBy: isRemovedService
           ? state === "removedByOwner"

@@ -43,6 +43,7 @@ export interface SeededBooking {
   technicianUserId: string;
   technicianName: string;
   serviceId: string;
+  categoryId: string;
   categoryName: string;
   amount: number;
   status: TBookingStatus;
@@ -50,6 +51,10 @@ export interface SeededBooking {
   acceptedAt: Date | null;
   completedAt: Date | null;
   cancelledAt: Date | null;
+  // Minutes between the request landing and the technician accepting it. Null
+  // for anything never accepted, which is what the API writes too.
+  responseMinutes: number | null;
+  createdAt: Date;
   payment?: PaymentSpec;
   review?: ReviewSpec;
 }
@@ -137,6 +142,16 @@ const REJECTED_COMMENTS = [
 
 const CARD_METHODS = ["VISA-CARD", "MASTERCARD", "AMEX"];
 const MFS_METHODS = ["bKash", "Nagad", "Rocket", "Upay"];
+
+const MINUTE = 60 * 1000;
+
+// How fast a technician answers, in minutes. Four out of five requests are
+// picked up inside the hour and the rest sit for a few hours, which is what
+// pulls the category average towards the low forties rather than a flat mid
+// point — a single number for every booking would make the figure meaningless.
+function pickResponseMinutes(): number {
+  return chance(80) ? randomInt(4, 45) : randomInt(46, 240);
+}
 
 // ---------- helpers ----------
 
@@ -342,6 +357,17 @@ export async function seedBookings(
           ? new Date(scheduledAt.getTime() - 1 * DAY)
           : null;
 
+      const responseMinutes = acceptedAt ? pickResponseMinutes() : null;
+
+      // Derived from the acceptance, not picked independently: a booking that
+      // was accepted 20 minutes after it landed has to have been created 20
+      // minutes before it was accepted, or the stored responseMinutes would
+      // disagree with the two timestamps sitting next to it.
+      const createdAt =
+        acceptedAt && responseMinutes
+          ? new Date(acceptedAt.getTime() - responseMinutes * MINUTE)
+          : new Date(scheduledAt.getTime() - randomInt(2, 6) * DAY);
+
       bookings.push({
         id: randomUUID(),
         customerId: customer.profileId,
@@ -350,6 +376,7 @@ export async function seedBookings(
         technicianUserId: tech.userId,
         technicianName: tech.fullName,
         serviceId: service.id,
+        categoryId: service.categoryId,
         categoryName: service.categoryName,
         amount: service.price,
         status,
@@ -357,6 +384,8 @@ export async function seedBookings(
         acceptedAt,
         completedAt,
         cancelledAt,
+        responseMinutes,
+        createdAt,
         payment: makePaymentSpec(status),
         review: makeReviewSpec(status),
       });
@@ -377,13 +406,14 @@ export async function seedBookings(
       area: tech?.area ?? "Gulshan",
       notes: pick(BOOKING_NOTES, index % BOOKING_NOTES.length),
       amount: b.amount,
+      categoryId: b.categoryId,
       categoryName: b.categoryName,
       scheduledAt: b.scheduledAt,
       acceptedAt: b.acceptedAt,
       completedAt: b.completedAt,
       cancelledAt: b.cancelledAt,
-      // A booking is created a few days before it is scheduled.
-      createdAt: new Date(b.scheduledAt.getTime() - randomInt(2, 6) * DAY),
+      responseMinutes: b.responseMinutes,
+      createdAt: b.createdAt,
     };
   });
 

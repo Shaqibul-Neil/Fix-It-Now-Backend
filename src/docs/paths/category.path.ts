@@ -29,23 +29,86 @@ const categoryIdParam = {
   description: "Category id.",
 };
 
+const categorySlugParam = {
+  name: "slug",
+  in: "path",
+  required: true,
+  schema: { type: "string", minLength: 1, maxLength: 120 },
+  description:
+    "Category slug. Normalised before lookup, so `Home Cleaning` and `home-cleaning` both find the same row.",
+  example: "plumbing",
+};
+
 export const categoryPaths = {
   "/categories": {
     get: {
       tags: ["Categories"],
       summary: "Public: list live categories",
       description:
-        "Switched-off and removed categories are never returned here — this is the customer-facing menu. " +
-        "No paging: the list is short by design and the home screen shows all of it.",
+        "Switched-off and removed categories are never returned here — this is the customer-facing menu.\n\n" +
+        "No paging: the list is short by design. `limit` exists for the home screen's 'top categories' strip, " +
+        "which has room for a fixed number of tiles; the full listing page sends no limit and gets everything.\n\n" +
+        "Every count on a card is aggregated at request time, so the numbers cannot drift from what the pages " +
+        "behind them show. Sorting happens after the counts are in hand — they are aggregates over three other " +
+        "tables, which is not something the database can rank rows by on its own.",
+      parameters: [
+        {
+          name: "sort",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["name", "popular", "trending"], default: "name" },
+          description:
+            "`name` — A-Z, the default.\n" +
+            "`popular` — most booked first, ties broken by service count then name.\n" +
+            "`trending` — the ones that earned `isTrending` first, then service count, then name.",
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 50 },
+          description: "Keep only the first N after sorting. Omit for the whole list.",
+          example: 8,
+        },
+      ],
       responses: {
         "200": {
-          description: "Live categories, A-Z.",
+          description: "Live categories in the requested order.",
           content: {
             "application/json": {
               schema: { type: "array", items: { $ref: "#/components/schemas/CategoryPublicItem" } },
             },
           },
         },
+        "400": { $ref: "#/components/responses/ValidationError" },
+      },
+    },
+  },
+  "/categories/{slug}": {
+    get: {
+      tags: ["Categories"],
+      summary: "Public: category landing page",
+      description:
+        "Everything one category page needs in a single call: the card's counts, the editorial copy, the six " +
+        "best-rated technicians working here and the six most-booked services with the technician who provides " +
+        "each one.\n\n" +
+        "Both strips are previews, not the catalogue. `serviceCount` is the real total and " +
+        "`GET /services?category={slug}` is the paginated, filterable grid behind 'See all' — embedding the whole " +
+        "list here would mean maintaining the same query twice.\n\n" +
+        "Only live categories answer. A switched-off or removed category is a 404 to a customer, the same as one " +
+        "that never existed.",
+      parameters: [categorySlugParam],
+      responses: {
+        "200": {
+          description: "Category landing page.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CategoryPublicDetails" },
+            },
+          },
+        },
+        "400": { $ref: "#/components/responses/ValidationError" },
+        "404": { $ref: "#/components/responses/NotFound" },
       },
     },
   },
@@ -74,6 +137,9 @@ export const categoryPaths = {
       tags: ["Categories"],
       summary: "Admin: create category",
       description:
+        "Only `name` is required, but a category created without `overview`, `tagline`, `coverImage` and " +
+        "`commonIssues` publishes a landing page with holes in it — those four are the whole page above the " +
+        "technician strip, and nothing derives them.\n\n" +
         "409 also fires when a **removed** category already holds the name — the message says so and asks for a " +
         "restore instead, because a second row with the same slug would be unreachable anyway.",
       security: [{ bearerAuth: [] }],
@@ -94,7 +160,10 @@ export const categoryPaths = {
     get: {
       tags: ["Categories"],
       summary: "Admin: category details",
-      description: "Answers for removed categories too — that is how the restore screen reads one.",
+      description:
+        "Answers for removed categories too — that is how the restore screen reads one.\n\n" +
+        "This is the edit form's source, not a report: it returns the row as stored, including `overview` as raw " +
+        "text for a textarea. The public counts live on `GET /categories/{slug}` instead.",
       security: [{ bearerAuth: [] }],
       parameters: [categoryIdParam],
       responses: {
@@ -112,7 +181,8 @@ export const categoryPaths = {
       tags: ["Categories"],
       summary: "Admin: update category",
       description:
-        "Renaming re-derives the slug and runs the same name check a create does. " +
+        "Renaming re-derives the slug and runs the same name check a create does. Note the slug is what the " +
+        "public landing page is reached by, so a rename changes that URL.\n\n" +
         "Flipping `isActive` notifies every technician who had a live service under the category.",
       security: [{ bearerAuth: [] }],
       parameters: [categoryIdParam],

@@ -13,11 +13,13 @@ model Booking {
 
   amount Decimal @db.Decimal(10, 2)
 
-  scheduledAt DateTime  @map("scheduled_at")
-  acceptedAt  DateTime? @map("accepted_at")
-  completedAt DateTime? @map("completed_at")
-  cancelledAt DateTime? @map("cancelled_at")
+  scheduledAt     DateTime  @map("scheduled_at")
+  acceptedAt      DateTime? @map("accepted_at")
+  completedAt     DateTime? @map("completed_at")
+  cancelledAt     DateTime? @map("cancelled_at")
+  responseMinutes Int?      @map("response_minutes")
 
+  categoryId   String @map("category_id") @db.Uuid
   categoryName String @map("category_name")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -30,11 +32,13 @@ model Booking {
   payment       Payment?
   review        Review?
   statusHistory BookingStatusHistory[]
+  category      Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([customerId])
   @@index([technicianId, scheduledAt])
   @@index([serviceId])
   @@index([status])
   @@index([categoryName])
+  @@index([categoryId, status])
   @@map("bookings")
 }

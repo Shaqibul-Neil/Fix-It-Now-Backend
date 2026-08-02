@@ -39,6 +39,10 @@ export async function seedReviews(
         customerId: b.customerId,
         technicianId: b.technicianId,
         serviceId: b.serviceId,
+        // Copied off the booking, not looked up off the service: the review
+        // belongs to the category the job was actually done under, even if the
+        // service has been moved somewhere else since.
+        categoryId: b.categoryId,
         rating: spec.rating,
         comment: spec.comment,
         status: spec.status,

@@ -4,6 +4,7 @@ model Review {
   customerId   String @map("customer_id") @db.Uuid
   technicianId String @map("technician_id") @db.Uuid
   serviceId    String @map("service_id") @db.Uuid
+  categoryId   String @map("category_id") @db.Uuid
 
   rating  Int           @db.SmallInt
   comment String?       @db.Text
@@ -17,8 +18,10 @@ model Review {
   customer   CustomerProfile   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
   service    Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  category   Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@index([technicianId, status])
   @@index([serviceId])
+  @@index([categoryId, status])
   @@map("reviews")
 }

@@ -5,8 +5,10 @@ import type { TRouteModule } from "../../routes/route.types";
 import { categoryController } from "./category.controller";
 import {
   categoryIdParamSchema,
+  categorySlugParamSchema,
   createCategorySchema,
   listCategoryAdminSchema,
+  listCategoryPublicSchema,
   updateCategorySchema,
 } from "./category.validation";
 
@@ -17,7 +19,14 @@ export const categoryRoute: TRouteModule = {
     {
       method: "get",
       path: "/categories",
+      middlewares: [validateRequest(listCategoryPublicSchema)],
       handler: categoryController.getCategories,
+    },
+    {
+      method: "get",
+      path: "/categories/:slug",
+      middlewares: [validateRequest(categorySlugParamSchema)],
+      handler: categoryController.getCategoryBySlug,
     },
     // -------------------Admin--------------
     {

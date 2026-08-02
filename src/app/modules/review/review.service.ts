@@ -109,6 +109,7 @@ export class ReviewService {
         customerId: customer.id,
         serviceId: booking.serviceId,
         technicianId: booking.technicianId,
+        categoryId: booking.categoryId,
         rating: payload.rating,
         comment: payload.comment,
       },
@@ -203,10 +204,7 @@ export class ReviewService {
 
   //-------------TECHNICIAN ACTIONS----------
   //--------------Reviews written about me-------------
-  async getMyTechnicianReviews(
-    userId: string,
-    query: TTechnicianReviewQuery,
-  ) {
+  async getMyTechnicianReviews(userId: string, query: TTechnicianReviewQuery) {
     const technician = await findTechnicianProfileByUserId(userId);
 
     // PUBLISHED only, same as the public page. A PENDING review has not been
