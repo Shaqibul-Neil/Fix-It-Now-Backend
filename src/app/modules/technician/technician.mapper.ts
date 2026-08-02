@@ -1,6 +1,8 @@
 import type { Prisma } from "../../../../generated/prisma/client";
+import { toParagraphs } from "../../../utils/utils";
 import { publicReviewMapper } from "../review/review.mapper";
 import type {
+  ADMIN_TECHNICIAN_DETAILS_SELECT,
   ADMIN_TECHNICIAN_LIST_SELECT,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
@@ -16,6 +18,7 @@ export const technicianListMapper = (
   firstName: technician.users.firstName,
   lastName: technician.users.lastName,
   email: technician.users.email,
+  avatar: technician.avatar,
   experienceYears: technician.experienceYears,
   hourlyRate: technician.hourlyRate,
   city: technician.city,
@@ -33,7 +36,9 @@ export const technicianDetailsMapper = (
   id: technician.id,
   firstName: technician.users.firstName,
   lastName: technician.users.lastName,
-  bio: technician.bio,
+  email: technician.users.email,
+  avatar: technician.avatar,
+  bio: toParagraphs(technician.bio),
   experienceYears: technician.experienceYears,
   hourlyRate: technician.hourlyRate,
   serviceRadius: technician.serviceRadius,
@@ -41,8 +46,6 @@ export const technicianDetailsMapper = (
   area: technician.area,
   averageRating: technician.averageRating,
   totalReviews: technician.totalReviews,
-  approvalStatus: technician.approvalStatus,
-  rejectionReason: technician.rejectionReason,
   services: technician.services.map((service) => ({
     id: service.id,
     title: service.title,
@@ -71,5 +74,48 @@ export const technicianAdminListMapper = (
     reviewedAt: technician.reviewedAt,
     appliedAt: technician.createdAt,
     completedJobs: _count.bookings,
+    accountStatus: technician.users.status,
+    userId: technician.users.id,
+    isDeleted: Boolean(technician.users.deletedAt),
   };
 };
+
+// admin detail — the public shape plus moderation state and the full service
+// list, removed rows included
+export const technicianAdminDetailsMapper = (
+  technician: Prisma.TechnicianProfileGetPayload<{
+    select: typeof ADMIN_TECHNICIAN_DETAILS_SELECT;
+  }>,
+) => ({
+  id: technician.id,
+  userId: technician.users.id,
+  firstName: technician.users.firstName,
+  lastName: technician.users.lastName,
+  email: technician.users.email,
+  phone: technician.phone,
+  avatar: technician.avatar,
+  bio: toParagraphs(technician.bio),
+  experienceYears: technician.experienceYears,
+  hourlyRate: technician.hourlyRate,
+  serviceRadius: technician.serviceRadius,
+  city: technician.city,
+  area: technician.area,
+  averageRating: technician.averageRating,
+  totalReviews: technician.totalReviews,
+  approvalStatus: technician.approvalStatus,
+  rejectionReason: technician.rejectionReason,
+  reviewedAt: technician.reviewedAt,
+  appliedAt: technician.createdAt,
+  accountStatus: technician.users.status,
+  isDeleted: Boolean(technician.users.deletedAt),
+  services: technician.services.map((service) => ({
+    id: service.id,
+    title: service.title,
+    price: service.price,
+    category: service.category.name,
+    isActive: service.isActive,
+    isDeleted: Boolean(service.deletedAt),
+  })),
+  reviews: technician.reviews.map(publicReviewMapper),
+  availability: technician.availabilitySlots,
+});

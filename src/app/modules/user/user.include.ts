@@ -14,14 +14,21 @@ export const USER_SELECT = {
 // user status check before ban / reactivate
 export const USER_STATUS_SELECT = {
   id: true,
+  firstName: true,
+  lastName: true,
   role: true,
   status: true,
+  deletedAt: true,
 } as const satisfies Prisma.UserSelect;
 
 // admin table: user row + total bookings placed (only customers have a profile)
 export const ADMIN_USER_LIST_SELECT = {
   ...USER_SELECT,
+  deletedAt: true,
   customerProfile: {
-    select: { _count: { select: { bookings: true } } },
+    select: { avatar: true, _count: { select: { bookings: true } } },
+  },
+  technicianProfile: {
+    select: { avatar: true },
   },
 } as const satisfies Prisma.UserSelect;

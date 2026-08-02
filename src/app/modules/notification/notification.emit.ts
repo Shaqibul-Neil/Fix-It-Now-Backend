@@ -37,7 +37,7 @@ export const tryNotifyMany = async (
 // Get Admin id -- recipients for every notification
 export const getAdminIds = async (): Promise<string[]> => {
   const admins = await prisma.user.findMany({
-    where: { role: TRole.ADMIN, status: TUserStatus.ACTIVE },
+    where: { role: TRole.ADMIN, status: TUserStatus.ACTIVE, deletedAt: null },
     select: { id: true },
   });
   return admins.map((admin) => admin.id);

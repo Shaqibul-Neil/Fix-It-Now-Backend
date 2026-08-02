@@ -18,10 +18,10 @@ export const BOOKING_LIST_BASE = {
   },
 } as const satisfies Prisma.BookingSelect;
 
-// reusable counterparty shape (name + contact)
 const LIST_PARTY_SELECT = {
   id: true,
   phone: true,
+  avatar: true,
   users: {
     select: { firstName: true, lastName: true, email: true },
   },
@@ -29,12 +29,10 @@ const LIST_PARTY_SELECT = {
   Prisma.CustomerProfileSelect;
 
 // Same party on the admin details screen, plus the User id so an admin can jump
-// from the booking to the account. Spelled out field by field rather than
-// `include: { users: true }` — User carries passwordHash, and an include hands
-// back every scalar on the row.
 const DETAILS_PARTY_SELECT = {
   id: true,
   phone: true,
+  avatar: true,
   users: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
@@ -84,6 +82,7 @@ export const CUSTOMER_BOOKING_INCLUDE = {
         select: {
           id: true,
           name: true,
+          image: true,
         },
       },
     },
@@ -93,6 +92,7 @@ export const CUSTOMER_BOOKING_INCLUDE = {
     select: {
       id: true,
       averageRating: true,
+      avatar: true,
       users: {
         select: {
           firstName: true,
@@ -128,6 +128,7 @@ export const TECHNICIAN_BOOKING_INCLUDE = {
         select: {
           id: true,
           name: true,
+          image: true,
         },
       },
     },
@@ -137,6 +138,7 @@ export const TECHNICIAN_BOOKING_INCLUDE = {
     select: {
       id: true,
       phone: true,
+      avatar: true,
       users: {
         select: {
           firstName: true,
@@ -170,10 +172,12 @@ export const ADMIN_BOOKING_INCLUDE = {
       title: true,
       price: true,
       isActive: true,
+      deletedAt: true,
       category: {
         select: {
           id: true,
           name: true,
+          image: true,
         },
       },
     },
@@ -202,10 +206,18 @@ export const ADMIN_BOOKING_INCLUDE = {
 export const BOOKING_CREATE_SERVICE_SELECT = {
   id: true,
   isActive: true,
+  deletedAt: true,
   price: true,
   technicianId: true,
-  technician: { select: { userId: true } },
-  category: { select: { name: true } },
+  technician: {
+    select: {
+      userId: true,
+      approvalStatus: true,
+      isAvailable: true,
+      users: { select: { status: true, deletedAt: true } },
+    },
+  },
+  category: { select: { name: true, isActive: true, deletedAt: true } },
 } as const satisfies Prisma.ServiceSelect;
 
 //------------------------------------

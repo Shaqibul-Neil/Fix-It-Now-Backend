@@ -63,6 +63,11 @@ export const bookingSchemas = {
           technicianName: { type: "string", example: "Karim Mia" },
           technicianEmail: { type: "string", format: "email" },
           technicianPhone: { type: "string", example: "01710000001" },
+          technicianAvatar: {
+            type: "string",
+            nullable: true,
+            description: "Profile picture URL. Fall back to initials when null.",
+          },
           reviewId: {
             type: "string",
             format: "uuid",
@@ -92,6 +97,11 @@ export const bookingSchemas = {
           customerName: { type: "string", example: "Nadia Akter" },
           customerEmail: { type: "string", format: "email" },
           customerPhone: { type: "string", example: "01810000001" },
+          customerAvatar: {
+            type: "string",
+            nullable: true,
+            description: "Profile picture URL. Fall back to initials when null.",
+          },
         },
       },
     ],
@@ -106,9 +116,11 @@ export const bookingSchemas = {
           customerName: { type: "string", example: "Nadia Akter" },
           customerEmail: { type: "string", format: "email" },
           customerPhone: { type: "string", example: "01810000001" },
+          customerAvatar: { type: "string", nullable: true },
           technicianName: { type: "string", example: "Karim Mia" },
           technicianEmail: { type: "string", format: "email" },
           technicianPhone: { type: "string", example: "01710000001" },
+          technicianAvatar: { type: "string", nullable: true },
         },
       },
     ],
@@ -149,6 +161,11 @@ export const bookingSchemas = {
         properties: {
           id: { type: "string", format: "uuid" },
           name: { type: "string", example: "Plumbing" },
+          image: {
+            type: "string",
+            nullable: true,
+            description: "A service has no picture of its own — this is what the page shows in its place.",
+          },
         },
       },
     },
@@ -173,6 +190,7 @@ export const bookingSchemas = {
     properties: {
       id: { type: "string", format: "uuid" },
       phone: { type: "string", example: "01810000001" },
+      avatar: { type: "string", nullable: true, description: "Profile picture URL. Fall back to initials when null." },
       users: {
         type: "object",
         properties: {
@@ -191,6 +209,7 @@ export const bookingSchemas = {
     properties: {
       id: { type: "string", format: "uuid", description: "Profile id." },
       phone: { type: "string", example: "01810000001" },
+      avatar: { type: "string", nullable: true },
       users: {
         type: "object",
         properties: {
@@ -248,6 +267,7 @@ export const bookingSchemas = {
             properties: {
               id: { type: "string", format: "uuid" },
               averageRating: { type: "number", example: 4.5 },
+              avatar: { type: "string", nullable: true },
               users: {
                 type: "object",
                 properties: {

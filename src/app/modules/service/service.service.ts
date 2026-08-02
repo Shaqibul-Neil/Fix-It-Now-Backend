@@ -7,6 +7,7 @@ import {
 } from "../technician/technician.model";
 import type {
   TCreateServicePayload,
+  TListManagedServicesQuery,
   TListServicesQuery,
   TUpdateServicePayload,
 } from "./service.validation";
@@ -25,23 +26,26 @@ import {
   notifyServiceCreated,
   notifyServiceUpdated,
   notifyServiceDeleted,
+  notifyServiceRestored,
 } from "../notification/notification.events";
 import {
   ADMIN_SERVICE_LIST_INCLUDE,
   SERVICE_CATEGORY_CHECK_SELECT,
   SERVICE_CREATED_INCLUDE,
-  SERVICE_DELETE_SELECT,
+  SERVICE_DELETED_INCLUDE,
   SERVICE_DETAILS_INCLUDE,
   SERVICE_MY_LIST_INCLUDE,
-  SERVICE_OWNERSHIP_SELECT,
   SERVICE_PUBLIC_LIST_INCLUDE,
   SERVICE_UPDATED_INCLUDE,
+  SERVICE_WRITE_SELECT,
 } from "./service.include";
 import { getBookingStatusBreakdown } from "../booking/booking.model";
 import {
   serviceAdminListMapper,
   servicePublicListMapper,
+  serviceTechnicianListMapper,
 } from "./service.mapper";
+import { ACTIVE_BOOKING_STATUSES } from "../booking/booking.constants";
 
 export class ServiceService {
   //----------Category Must Exist----------
@@ -50,7 +54,7 @@ export class ServiceService {
       where: { id: categoryId },
       select: SERVICE_CATEGORY_CHECK_SELECT,
     });
-    if (!category) {
+    if (!category || category.deletedAt) {
       throw new AppError("Category not found.", httpStatus.NOT_FOUND);
     }
     if (!category.isActive) {
@@ -60,24 +64,30 @@ export class ServiceService {
       );
     }
   }
-
-  //----------Check Service----------
-  private async isServiceExist<T extends Prisma.ServiceSelect>(
+  //----------Service Must Exist----------
+  private async findWritableService(
     serviceId: string,
-    select: T,
-  ): Promise<Prisma.ServiceGetPayload<{ select: T }>> {
+    { allowDeleted = false }: { allowDeleted?: boolean } = {},
+  ) {
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      select,
+      select: SERVICE_WRITE_SELECT,
     });
     if (!service) {
       throw new AppError("Service not found.", httpStatus.NOT_FOUND);
     }
-    return service as Prisma.ServiceGetPayload<{ select: T }>;
+
+    if (!allowDeleted && service.deletedAt) {
+      throw new AppError("Service not found.", httpStatus.NOT_FOUND);
+    }
+
+    return service;
   }
 
+  //-------------------------------------------
   //-------------TECHNICIAN ACTIONS----------
   //--------------Create Service-------------
+  //-------------------------------------------
   async createService(userId: string, payload: TCreateServicePayload) {
     //get the approved technician profile
     const technician = await findApprovedTechnicianProfile(userId);
@@ -109,7 +119,9 @@ export class ServiceService {
     return service;
   }
 
+  //-------------------------------------------
   //--------------Update Service-------------
+  //-------------------------------------------
   async updateService(
     userId: string,
     serviceId: string,
@@ -119,10 +131,7 @@ export class ServiceService {
     const technician = await findApprovedTechnicianProfile(userId);
 
     //get the service
-    const service = await this.isServiceExist(
-      serviceId,
-      SERVICE_OWNERSHIP_SELECT,
-    );
+    const service = await this.findWritableService(serviceId);
     if (service.technicianId !== technician.id) {
       throw new AppError(
         "You can only edit your own services.",
@@ -158,8 +167,10 @@ export class ServiceService {
     return updatedService;
   }
 
+  //-------------------------------------------
   //-------------Get Technician's Service-------------
-  async getMyServices(userId: string, query: TListServicesQuery) {
+  //-------------------------------------------
+  async getMyServices(userId: string, query: TListManagedServicesQuery) {
     //get the technician profile
     const technician = await findTechnicianProfileByUserId(userId);
 
@@ -187,7 +198,7 @@ export class ServiceService {
     ]);
 
     return {
-      items,
+      items: items.map(serviceTechnicianListMapper),
       meta: {
         page,
         limit,
@@ -196,11 +207,13 @@ export class ServiceService {
     };
   }
 
+  //-------------------------------------------
   //-------------TECHNICIAN + ADMIN ACTIONS----------
-  //--------------Delete Service-------------
+  //--------------Delete Service (soft)-------------
+  //-------------------------------------------
   async deleteService(userId: string, role: TRole, serviceId: string) {
     //Check the service
-    const service = await this.isServiceExist(serviceId, SERVICE_DELETE_SELECT);
+    const service = await this.findWritableService(serviceId);
 
     //Technician can only delete their service
     if (role === TRole.TECHNICIAN) {
@@ -214,35 +227,91 @@ export class ServiceService {
     }
 
     //Check If booking exists
-    const bookingCount = await prisma.booking.count({
-      where: { serviceId },
+    const activeBookingCount = await prisma.booking.count({
+      where: { serviceId, status: { in: ACTIVE_BOOKING_STATUSES } },
     });
-    if (bookingCount > 0) {
-      throw new AppError(
-        "Cannot delete a service that has bookings.",
-        httpStatus.CONFLICT,
-      );
-    }
 
-    //Delete service
-    await prisma.service.delete({ where: { id: serviceId } });
+    // Removal writes deletedAt and deletedBy only. isActive is the technician's own pause switch and it keeps its value through the removal — writing over it destroys the answer to "was this service being offered before it went away", which is exactly what a restore needs to put it back the way it was found.
+    const deletedService = await prisma.service.update({
+      where: { id: serviceId },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: userId,
+      },
+      include: SERVICE_DELETED_INCLUDE,
+    });
 
     const technicianName = createFullName(
-      service.technician.users.firstName,
-      service.technician.users.lastName,
+      deletedService.technician.users.firstName,
+      deletedService.technician.users.lastName,
     );
 
     //send notification
     await notifyServiceDeleted(
-      service.title,
-      service.technician.userId,
+      deletedService.title,
+      deletedService.technician.userId,
       technicianName,
+      role === TRole.ADMIN,
     );
-    return { id: serviceId };
+    const { technician, ...serviceFields } = deletedService;
+    return { ...serviceFields, activeBookingCount };
   }
 
+  //-------------------------------------------
+  //--------------Restore a removed service-------------
+  //-------------------------------------------
+  async restoreService(userId: string, role: TRole, serviceId: string) {
+    const service = await this.findWritableService(serviceId, {
+      allowDeleted: true,
+    });
+
+    if (!service.deletedAt) {
+      throw new AppError("This service is not removed.", httpStatus.CONFLICT);
+    }
+
+    if (role === TRole.TECHNICIAN) {
+      const technician = await findTechnicianProfileByUserId(userId);
+
+      if (service.technicianId !== technician.id) {
+        throw new AppError(
+          "You can only restore your own services.",
+          httpStatus.FORBIDDEN,
+        );
+      }
+      if (service.deletedBy !== userId) {
+        throw new AppError(
+          "An admin removed this service. Contact support to restore it.",
+          httpStatus.FORBIDDEN,
+        );
+      }
+    }
+
+    // The category may have gone away while the service sat removed. Putting it back under a dead category would produce a row no list can reach.
+    await this.isCategoryExist(service.categoryId);
+
+    // Clears the removal and nothing else. Whatever isActive held before the removal is still sitting there, so a service that was paused comes back paused and a live one comes back live — turning it back on is the technician's own separate decision.
+    const restoredService = await prisma.service.update({
+      where: { id: serviceId },
+      data: { deletedAt: null, deletedBy: null },
+      include: SERVICE_DELETED_INCLUDE,
+    });
+
+    //send notification
+    await notifyServiceRestored(
+      restoredService.id,
+      restoredService.title,
+      restoredService.technician.userId,
+      role === TRole.ADMIN,
+    );
+
+    const { technician, ...serviceFields } = restoredService;
+    return serviceFields;
+  }
+
+  //-------------------------------------------
   //------------------ADMIN: service list + booking count-----------------
-  async getAllServicesForAdmin(query: TListServicesQuery) {
+  //-------------------------------------------
+  async getAllServicesForAdmin(query: TListManagedServicesQuery) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
     const where = buildAdminServiceFilter(query);
 
@@ -263,7 +332,9 @@ export class ServiceService {
     };
   }
 
+  //-------------------------------------------
   //------------------ADMIN: service detail + bookings by status-----------------
+  //-------------------------------------------
   async getServiceByIdForAdmin(id: string) {
     const service = await prisma.service.findUnique({
       where: { id },
@@ -276,8 +347,10 @@ export class ServiceService {
     return { ...service, bookingsByStatus };
   }
 
+  //-------------------------------------------
   //------------------PUBLIC-----------------
   //--------------Get All Service-------------
+  //-------------------------------------------
   async getAllServices(query: TListServicesQuery) {
     // Prepare pagination
     const { page, limit, skip } = getPagination(query.page, query.limit);

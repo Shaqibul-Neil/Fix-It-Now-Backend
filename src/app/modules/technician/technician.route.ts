@@ -10,6 +10,7 @@ import {
   listTechniciansSchema,
   reviewTechnicianSchema,
   technicianIdParamSchema,
+  updateAvailabilityStatusSchema,
   updateTechnicianProfileSchema,
 } from "./technician.validation";
 
@@ -34,6 +35,15 @@ export const technicianRoute: TRouteModule = {
         validateRequest(updateTechnicianProfileSchema),
       ),
       handler: technicianController.updateProfile,
+    },
+    {
+      method: "patch",
+      path: "/profile/availability",
+      middlewares: roleRoute(
+        [TRole.TECHNICIAN],
+        validateRequest(updateAvailabilityStatusSchema),
+      ),
+      handler: technicianController.updateAvailabilityStatus,
     },
     {
       method: "get",

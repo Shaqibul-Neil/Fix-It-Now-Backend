@@ -41,6 +41,7 @@ export const customerBookingListMapper = (
   ),
   technicianEmail: booking.technician.users.email,
   technicianPhone: booking.technician.phone,
+  technicianAvatar: booking.technician.avatar,
   // Flattened out of the relation, because the row only ever needs the answer to
   // "can this be reviewed". null means no review exists yet — combined with
   // status COMPLETED that is exactly when the action is offered. The server still
@@ -62,6 +63,7 @@ export const technicianBookingListMapper = (
   ),
   customerEmail: booking.customer.users.email,
   customerPhone: booking.customer.phone,
+  customerAvatar: booking.customer.avatar,
 });
 
 // Admin sees both at root
@@ -77,10 +79,12 @@ export const adminBookingListMapper = (
   ),
   customerEmail: booking.customer.users.email,
   customerPhone: booking.customer.phone,
+  customerAvatar: booking.customer.avatar,
   technicianName: createFullName(
     booking.technician.users.firstName,
     booking.technician.users.lastName,
   ),
   technicianEmail: booking.technician.users.email,
   technicianPhone: booking.technician.phone,
+  technicianAvatar: booking.technician.avatar,
 });

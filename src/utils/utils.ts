@@ -159,3 +159,12 @@ export const generateBuckets = (
   }
   return result;
 };
+
+// One blank line separates paragraphs
+export const toParagraphs = (text: string | null): string[] =>
+  text
+    ? text
+        .split(/\r?\n\s*\r?\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+    : [];

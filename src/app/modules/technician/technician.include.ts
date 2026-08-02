@@ -5,24 +5,23 @@ import {
   TTechnicianApprovalStatus,
   TUserStatus,
 } from "../../../../generated/prisma/enums";
+import { LIVE_ONLY } from "../../../utils/recordStatus";
 import {
   AVAILABILITY_ORDER_BY,
   PUBLIC_AVAILABILITY_SELECT,
 } from "../availabilitySlot/availabilitySlot.include";
 import { PUBLIC_REVIEW_SELECT } from "../review/review.include";
 
-// The three gates a technician has to pass to exist for a customer: the
-// onboarding form is finished, an admin approved it, and the account is not
-// banned. A ban is an account action and an approval is a review decision, so
-// neither implies the other — every public read spreads all three.
+// The three gates a technician has to pass to exist for a customer: the onboarding form is finished, an admin approved it, and the account is not banned. A ban is an account action and an approval is a review decision, so neither implies the other — every public read spreads all three.
 export const PUBLIC_TECHNICIAN_WHERE = {
   isProfileComplete: true,
   approvalStatus: TTechnicianApprovalStatus.APPROVED,
-  users: { status: TUserStatus.ACTIVE },
+  users: { status: TUserStatus.ACTIVE, deletedAt: null },
 } as const satisfies Prisma.TechnicianProfileWhereInput;
 
 export const TECHNICIAN_LIST_SELECT = {
   id: true,
+  avatar: true,
   experienceYears: true,
   hourlyRate: true,
   city: true,
@@ -41,6 +40,7 @@ export const TECHNICIAN_LIST_SELECT = {
 export const TECHNICIAN_DETAILS_SELECT = {
   id: true,
   bio: true,
+  avatar: true,
   experienceYears: true,
   hourlyRate: true,
   serviceRadius: true,
@@ -48,18 +48,15 @@ export const TECHNICIAN_DETAILS_SELECT = {
   area: true,
   averageRating: true,
   totalReviews: true,
-  approvalStatus: true,
-  rejectionReason: true,
   users: {
     select: {
       firstName: true,
       lastName: true,
+      email: true,
     },
   },
   services: {
-    where: {
-      isActive: true,
-    },
+    where: LIVE_ONLY,
     select: {
       id: true,
       title: true,
@@ -71,8 +68,6 @@ export const TECHNICIAN_DETAILS_SELECT = {
       },
     },
   },
-  // Same row the dedicated review endpoint serves — an unsigned "5 stars, great
-  // work" carries no weight, and the reader wants to know which job it was for.
   reviews: {
     where: {
       status: TReviewStatus.PUBLISHED,
@@ -80,17 +75,20 @@ export const TECHNICIAN_DETAILS_SELECT = {
     orderBy: {
       createdAt: "desc",
     },
-    take: 20,
+    take: 5,
     select: PUBLIC_REVIEW_SELECT,
   },
-  // The profile page is where a customer decides whether this technician suits
-  // them, and "when do they work" is part of that. It rides along here so the
-  // page does not need a second request just to answer it.
   availabilitySlots: {
     where: { isActive: true },
     orderBy: AVAILABILITY_ORDER_BY,
     select: PUBLIC_AVAILABILITY_SELECT,
   },
+} as const satisfies Prisma.TechnicianProfileSelect;
+
+// the availability switch on its own — nothing else on the profile moved
+export const TECHNICIAN_AVAILABILITY_SELECT = {
+  id: true,
+  isAvailable: true,
 } as const satisfies Prisma.TechnicianProfileSelect;
 
 // profile + owner name — for create/update responses
@@ -123,7 +121,50 @@ export const ADMIN_TECHNICIAN_LIST_SELECT = {
   rejectionReason: true,
   reviewedAt: true,
   createdAt: true,
+  users: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      status: true,
+      deletedAt: true,
+    },
+  },
   _count: {
     select: { bookings: { where: { status: TBookingStatus.COMPLETED } } },
+  },
+} as const satisfies Prisma.TechnicianProfileSelect;
+
+export const ADMIN_TECHNICIAN_DETAILS_SELECT = {
+  ...TECHNICIAN_DETAILS_SELECT,
+  phone: true,
+  approvalStatus: true,
+  rejectionReason: true,
+  reviewedAt: true,
+  createdAt: true,
+  users: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      status: true,
+      deletedAt: true,
+    },
+  },
+  services: {
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      isActive: true,
+      deletedAt: true,
+      category: {
+        select: {
+          name: true,
+        },
+      },
+    },
   },
 } as const satisfies Prisma.TechnicianProfileSelect;

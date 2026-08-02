@@ -2,11 +2,20 @@ export const reviewSchemas = {
   ReviewCreate: {
     type: "object",
     required: ["bookingId", "rating"],
-    description: "One review per booking, and only once the booking is COMPLETED.",
+    description:
+      "One review per booking, and only once the booking is COMPLETED.",
     properties: {
       bookingId: { type: "string", format: "uuid" },
       rating: { type: "integer", minimum: 1, maximum: 5, example: 5 },
-      comment: { type: "string", maxLength: 2000, example: "Fixed the leak in under an hour." },
+      comment: {
+        type: "string",
+        maxLength: 2000,
+        description:
+          "Sent as one string. A blank line (`\\n\\n`) starts a new paragraph — the public read endpoints split on " +
+          "that and return an array.",
+        example:
+          "Arrived ten minutes early and left the bathroom cleaner than he found it.\n\nThe leak has not come back once in three weeks.",
+      },
     },
   },
   ReviewUpdate: {
@@ -34,10 +43,16 @@ export const reviewSchemas = {
   },
   ReviewParty: {
     type: "object",
-    description: "A person on one side of the review. `id` is the profile id, not the User id.",
+    description:
+      "A person on one side of the review. `id` is the profile id, not the User id.",
     properties: {
       id: { type: "string", format: "uuid" },
       name: { type: "string", example: "Nadia Akter" },
+      avatar: {
+        type: "string",
+        nullable: true,
+        description: "Profile picture URL. Fall back to initials when null.",
+      },
     },
   },
   ReviewServiceRef: {
@@ -72,7 +87,18 @@ export const reviewSchemas = {
     properties: {
       id: { type: "string", format: "uuid" },
       rating: { type: "integer", minimum: 1, maximum: 5, example: 5 },
-      comment: { type: "string", nullable: true, example: "Fixed the leak in under an hour." },
+      comment: {
+        type: "array",
+        description:
+          "One entry per paragraph, already split — render each as its own `<p>`. Empty array when the customer " +
+          "left a rating and no words. The moderation row keeps `comment` as a raw string instead, because an admin " +
+          "reads what was written, not a formatted card.",
+        items: { type: "string" },
+        example: [
+          "Arrived ten minutes early and left the bathroom cleaner than he found it.",
+          "The leak has not come back once in three weeks.",
+        ],
+      },
       createdAt: { type: "string", format: "date-time" },
       customer: { $ref: "#/components/schemas/ReviewParty" },
       service: { $ref: "#/components/schemas/ReviewServiceRef" },
@@ -106,7 +132,11 @@ export const reviewSchemas = {
       {
         type: "object",
         properties: {
-          email: { type: "string", format: "email", example: "nadia.cust@fixitnow.com" },
+          email: {
+            type: "string",
+            format: "email",
+            example: "nadia.cust@fixitnow.com",
+          },
         },
       },
     ],

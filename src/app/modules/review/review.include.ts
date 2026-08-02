@@ -47,6 +47,7 @@ export const REVIEW_LIST_SELECT = {
   technician: {
     select: {
       id: true,
+      avatar: true,
       users: { select: { firstName: true, lastName: true } },
     },
   },
@@ -64,6 +65,7 @@ export const PUBLIC_REVIEW_SELECT = {
   customer: {
     select: {
       id: true,
+      avatar: true,
       users: { select: { firstName: true, lastName: true } },
     },
   },
@@ -79,12 +81,14 @@ export const ADMIN_REVIEW_SELECT = {
   technician: {
     select: {
       id: true,
+      avatar: true,
       users: { select: { firstName: true, lastName: true, email: true } },
     },
   },
   customer: {
     select: {
       id: true,
+      avatar: true,
       users: { select: { firstName: true, lastName: true, email: true } },
     },
   },

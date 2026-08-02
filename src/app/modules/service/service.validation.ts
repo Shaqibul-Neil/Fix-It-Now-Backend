@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordStatusQuerySchema } from "../../../utils/recordStatus";
 
 export const createServiceSchema = z.object({
   body: z.object({
@@ -48,6 +49,7 @@ export const serviceIdParamSchema = z.object({
   }),
 });
 
+//Public Filter
 export const listServicesSchema = z.object({
   query: z.object({
     category: z.string().trim().min(1).max(120).optional(),
@@ -60,6 +62,16 @@ export const listServicesSchema = z.object({
   }),
 });
 
+// The owner's list and the admin's list — same filters, plus the tab.
+export const listManagedServicesSchema = z.object({
+  query: listServicesSchema.shape.query.extend({
+    status: recordStatusQuerySchema,
+  }),
+});
+
 export type TCreateServicePayload = z.infer<typeof createServiceSchema>["body"];
 export type TUpdateServicePayload = z.infer<typeof updateServiceSchema>["body"];
 export type TListServicesQuery = z.infer<typeof listServicesSchema>["query"];
+export type TListManagedServicesQuery = z.infer<
+  typeof listManagedServicesSchema
+>["query"];

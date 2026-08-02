@@ -32,7 +32,14 @@ export const authenticate = asyncHandler(
       );
 
     //check user status
-    const user = await authService.currentUser(userId);
+    const { deletedAt, ...user } = await authService.currentUser(userId);
+
+    if (deletedAt)
+      throw new AppError(
+        "Unauthorized - This account no longer exists.",
+        httpStatus.UNAUTHORIZED,
+      );
+
     if (user.status !== TUserStatus.ACTIVE)
       throw new AppError(
         "Unauthorized - Your account is no longer active.",

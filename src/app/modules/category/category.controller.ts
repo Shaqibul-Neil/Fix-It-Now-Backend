@@ -5,6 +5,7 @@ import { sendResponse } from "../../../utils/sendResponse";
 import { categoryService, type CategoryService } from "./category.service";
 import type {
   TCreateCategoryPayload,
+  TListCategoryAdminQuery,
   TUpdateCategoryPayload,
 } from "./category.validation";
 
@@ -44,19 +45,69 @@ class CategoryController {
     });
   });
 
-  //--------------Delete Category-------------
+  //--------------Delete Category (soft)-------------
   deleteCategory = asyncHandler(async (req: TRequest, res: TResponse) => {
     const categoryId = req.params.id as string;
 
-    await this.categoryService.deleteCategory(categoryId);
+    const result = await this.categoryService.deleteCategory(categoryId);
 
     sendResponse({
       res,
       status: httpStatus.OK,
       success: true,
       message: "Category deleted successfully",
+      data: result,
     });
   });
+
+  //--------------Restore Category-------------
+  restoreCategory = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const categoryId = req.params.id as string;
+    const category = await this.categoryService.restoreCategory(categoryId);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Category restored successfully",
+      data: category,
+    });
+  });
+
+  //--------------Admin: category list-------------
+  getCategoriesForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const query = req.query as TListCategoryAdminQuery;
+      const { items, meta } =
+        await this.categoryService.getAllCategoriesForAdmin(query);
+
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Categories fetched successfully",
+        data: items,
+        meta,
+      });
+    },
+  );
+
+  //--------------Admin: category detail-------------
+  getCategoryByIdForAdmin = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const categoryId = req.params.id as string;
+      const category =
+        await this.categoryService.getCategoryByIdForAdmin(categoryId);
+
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: "Category details fetched successfully",
+        data: category,
+      });
+    },
+  );
 
   //------------------PUBLIC---------------
   //---------------All Category--------------

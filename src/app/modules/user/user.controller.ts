@@ -45,6 +45,36 @@ class UserController {
       data: result,
     });
   });
+
+  //--------------Remove a user (soft)-------------
+  deleteUser = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const adminId = req.user.id as string;
+    const userId = req.params.id as string;
+    const result = await this.userService.deleteUser(adminId, userId);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "User removed successfully",
+      data: result,
+    });
+  });
+
+  //--------------Restore a user-------------
+  restoreUser = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const adminId = req.user.id as string;
+    const userId = req.params.id as string;
+    const result = await this.userService.restoreUser(adminId, userId);
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "User restored successfully",
+      data: result,
+    });
+  });
 }
 
 export const userController = new UserController(userService);

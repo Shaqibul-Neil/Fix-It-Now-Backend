@@ -32,7 +32,7 @@ model Booking {
   statusHistory BookingStatusHistory[]
 
   @@index([customerId])
-  @@index([technicianId])
+  @@index([technicianId, scheduledAt])
   @@index([serviceId])
   @@index([status])
   @@index([categoryName])

@@ -3,6 +3,7 @@ import {
   TTechnicianApprovalStatus,
   TUserStatus,
 } from "../../../../generated/prisma/enums";
+import { PUBLIC_TECHNICIAN_WHERE } from "./technician.include";
 
 import type {
   TAdminListTechniciansQuery,
@@ -14,7 +15,6 @@ const buildSharedTechnicianFilter = (
   query: TListTechniciansQuery,
 ): Prisma.TechnicianProfileWhereInput => ({
   isProfileComplete: true,
-
   ...(query.city && {
     city: {
       equals: query.city,
@@ -53,22 +53,33 @@ export const buildTechnicianFilter = (
   query: TListTechniciansQuery,
 ): Prisma.TechnicianProfileWhereInput => {
   const shared = buildSharedTechnicianFilter(query);
+  const { users: publicAccountGate, ...publicProfileGate } =
+    PUBLIC_TECHNICIAN_WHERE;
 
   return {
     ...shared,
-    approvalStatus: TTechnicianApprovalStatus.APPROVED,
+    ...publicProfileGate,
     users: {
       ...(shared.users as Prisma.UserWhereInput | undefined),
       status: TUserStatus.ACTIVE,
+      deletedAt: null,
     },
   };
 };
 
-// Admin list — the approval tab decides which bucket comes back.
-// No tab selected means the admin wants every technician.
+// Admin list — the approval tab picks the bucket, the account tab picks the state, and removed accounts stay out unless the admin asks for them. No tab selected means the admin wants every technician.
 export const buildAdminTechnicianFilter = (
   query: TAdminListTechniciansQuery,
-): Prisma.TechnicianProfileWhereInput => ({
-  ...buildSharedTechnicianFilter(query),
-  ...(query.approvalStatus && { approvalStatus: query.approvalStatus }),
-});
+): Prisma.TechnicianProfileWhereInput => {
+  const shared = buildSharedTechnicianFilter(query);
+
+  return {
+    ...shared,
+    ...(query.approvalStatus && { approvalStatus: query.approvalStatus }),
+    users: {
+      ...(shared.users as Prisma.UserWhereInput | undefined),
+      ...(query.accountStatus && { status: query.accountStatus }),
+      ...(query.includeDeleted ? {} : { deletedAt: null }),
+    },
+  };
+};

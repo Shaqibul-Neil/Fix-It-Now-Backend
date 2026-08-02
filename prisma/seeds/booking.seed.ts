@@ -99,28 +99,40 @@ const BOOKING_NOTES = [
   null,
 ];
 
+// Review text is stored the same way a bio is: one Text column, a blank line
+// between paragraphs, split on the way out. Every comment runs past twenty words
+// so a review card on the technician profile has something real to show, and two
+// of the published ones are deliberately multi-paragraph.
 const PUBLISHED_COMMENTS = [
-  "Excellent work, arrived on time and cleaned up after.",
-  "Very professional. Fixed it in one visit.",
-  "Fair price and good quality. Will book again.",
-  "Knew exactly what the problem was. Highly recommended.",
-  "Polite, punctual and skilled. No complaints.",
-  "Solid job overall, small delay at the start.",
+  "Arrived ten minutes early, laid down a sheet before starting and left the bathroom cleaner than he found it. The leak has not come back once in three weeks.",
+
+  "Booked in the morning and the job was finished by the afternoon. He explained the fault clearly instead of just quoting a number at me.\n\nThe price matched the estimate exactly. I would book him again without thinking about it.",
+
+  "Fair price for the amount of work involved, and he showed me the worn part he replaced rather than just telling me about it. No complaints at all.",
+
+  "Knew what the problem was within five minutes of walking in. Fixed it in one visit with no second appointment and no extra charge for the part.",
+
+  "Polite, punctual and clearly experienced. Covered the furniture before starting and took all the packaging away with him at the end.\n\nSecond time I have booked him now, and I will keep doing so.",
+
+  "Solid work overall. He started about half an hour late because of traffic, but he called ahead to say so and stayed on until the job was properly done.",
 ];
 
 const PENDING_COMMENTS = [
-  "Decent work, waiting for moderation.",
-  "Job done but took longer than quoted.",
+  "The work itself was fine and the finish looks neat, but the job ran about two hours past what was quoted and nobody warned me it would.",
+
+  "Decent job for the price. He had to come back the next morning for a part, which was not ideal, but he did not charge anything extra for it.",
 ];
 
 const HIDDEN_COMMENTS = [
-  "Hidden by admin — contains personal contact details.",
-  "Hidden pending a second look at the complaint.",
+  "Hidden by a moderator: the customer included a personal phone number and a home address in the original text, so the review is not shown on the profile.",
+
+  "Hidden while a billing complaint attached to this booking is being looked at. The rating stays out of the public average until that is settled.",
 ];
 
 const REJECTED_COMMENTS = [
-  "Rejected — abusive language.",
-  "Rejected — unrelated spam content.",
+  "Rejected by moderation: the original comment contained abusive language aimed at the technician and does not describe the work that was actually carried out.",
+
+  "Rejected as spam: the text was an advert for an unrelated business and had nothing to do with the booking it was attached to.",
 ];
 
 const CARD_METHODS = ["VISA-CARD", "MASTERCARD", "AMEX"];
@@ -284,13 +296,15 @@ export async function seedBookings(
     throw new Error("Seed error: no bookable technician to attach bookings to");
   }
 
-  // New bookings only ever come from active customers; the banned ones keep
-  // their old history, which is what the admin user detail page shows.
+  // New bookings only ever come from customers who can still sign in. The
+  // banned and the removed ones keep their old history, which is what the admin
+  // user detail page shows — deleting the account never deletes the record of
+  // what it did.
   const activeCustomers = customers.filter(
-    (c) => c.status === TUserStatus.ACTIVE,
+    (c) => c.status === TUserStatus.ACTIVE && !c.isRemoved,
   );
-  const bannedCustomers = customers.filter(
-    (c) => c.status === TUserStatus.BANNED,
+  const lockedOutCustomers = customers.filter(
+    (c) => c.status === TUserStatus.BANNED || c.isRemoved,
   );
 
   const bookings: SeededBooking[] = [];
@@ -299,11 +313,12 @@ export async function seedBookings(
   for (const tech of bookable) {
     for (const status of buildPlan()) {
       // Round-robin the active customers so every one of the 40 has history,
-      // with the odd old booking assigned to a since-banned account.
+      // with the odd old booking assigned to an account that has since been
+      // banned or removed.
       const isHistoric = status === S.COMPLETED || status === S.CANCELLED;
       const customer =
-        isHistoric && bannedCustomers.length > 0 && chance(6)
-          ? pickRandom(bannedCustomers)
+        isHistoric && lockedOutCustomers.length > 0 && chance(6)
+          ? pickRandom(lockedOutCustomers)
           : pick(activeCustomers, customerCursor++ % activeCustomers.length);
 
       const service = pickRandom(tech.services);

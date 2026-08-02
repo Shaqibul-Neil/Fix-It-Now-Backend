@@ -5,6 +5,7 @@ import { sendResponse } from "../../../utils/sendResponse";
 import { serviceService, type ServiceService } from "./service.service";
 import type {
   TCreateServicePayload,
+  TListManagedServicesQuery,
   TListServicesQuery,
   TUpdateServicePayload,
 } from "./service.validation";
@@ -65,7 +66,7 @@ class ServiceController {
       res,
       status: httpStatus.OK,
       success: true,
-      message: "Service deleted successfully",
+      message: "Service removed successfully",
       data: result,
     });
   });
@@ -73,7 +74,7 @@ class ServiceController {
   //-------------Get Technician's Service-------------
   getMyServices = asyncHandler(async (req: TRequest, res: TResponse) => {
     const userId = req.user.id as string;
-    const query = req.query as TListServicesQuery;
+    const query = req.query as TListManagedServicesQuery;
     const { items, meta } = await this.serviceService.getMyServices(
       userId,
       query,
@@ -104,10 +105,30 @@ class ServiceController {
     });
   });
 
+  //--------------Restore service  (owner or admin)-------------
+  restoreService = asyncHandler(async (req: TRequest, res: TResponse) => {
+    const serviceId = req.params.id as string;
+    const userId = req.user.id as string;
+    const role = req.user.role as TRole;
+    const service = await this.serviceService.restoreService(
+      userId,
+      role,
+      serviceId,
+    );
+
+    sendResponse({
+      res,
+      status: httpStatus.OK,
+      success: true,
+      message: "Service restored successfully",
+      data: service,
+    });
+  });
+
   //--------------Admin: service list-------------
   getAllServicesForAdmin = asyncHandler(
     async (req: TRequest, res: TResponse) => {
-      const query = req.query as TListServicesQuery;
+      const query = req.query as TListManagedServicesQuery;
       const { items, meta } =
         await this.serviceService.getAllServicesForAdmin(query);
       sendResponse({

@@ -13,6 +13,7 @@ import {
   TBookingStatus,
   TPaymentStatus,
   TTechnicianApprovalStatus,
+  TUserStatus,
 } from "../generated/prisma/enums";
 
 const PASSWORD = "Password123!"; // same login password for EVERY seeded user (incl. admin)
@@ -71,6 +72,8 @@ async function main() {
   const notificationCount = await seedNotifications(
     bookings,
     technicians,
+    customers,
+    categories,
     admins,
   );
 
@@ -84,10 +87,38 @@ async function main() {
   const rejected = technicians.filter(
     (t) => t.approvalStatus === TTechnicianApprovalStatus.REJECTED,
   ).length;
-  const serviceCount = technicians.reduce(
-    (sum, t) => sum + t.services.length,
-    0,
-  );
+  const bannedTechnicians = technicians.filter(
+    (t) => t.userStatus === TUserStatus.BANNED,
+  ).length;
+  const removedTechnicians = technicians.filter((t) => t.isRemoved).length;
+
+  const bannedCustomers = customers.filter(
+    (c) => c.status === TUserStatus.BANNED,
+  ).length;
+  const removedCustomers = customers.filter((c) => c.isRemoved).length;
+
+  const allServices = technicians.flatMap((t) => t.services);
+  const serviceCount = allServices.length;
+  const removedByOwner = allServices.filter(
+    (s) => s.removedBy === "owner",
+  ).length;
+  const removedByAdmin = allServices.filter(
+    (s) => s.removedBy === "admin",
+  ).length;
+
+  // isActive:false with deletedAt still null — switched off, not removed. This
+  // is exactly what `?status=paused` returns, so the number printed here is the
+  // number that tab should show.
+  const pausedServices = await prisma.service.count({
+    where: { isActive: false, deletedAt: null },
+  });
+
+  // Removed rows keep the switch position they had, so some of them read
+  // isActive:false. Printing the count proves the restore has something to put
+  // back off rather than turning everything on.
+  const pausedBeforeRemoval = await prisma.service.count({
+    where: { isActive: false, deletedAt: { not: null } },
+  });
 
   const byStatus = Object.values(TBookingStatus)
     .map((status) => {
@@ -112,14 +143,26 @@ async function main() {
   console.log("   Technician : karim.tech@fixitnow.com   (APPROVED)");
   console.log("   Technician : alamgir20.tech@fixitnow.com (PENDING review)");
   console.log("   Technician : bashir40.tech@fixitnow.com  (REJECTED)");
+  console.log("   Technician : babul43.tech@fixitnow.com   (BANNED)");
+  console.log("   Technician : alamin48.tech@fixitnow.com  (APPROVED + account REMOVED)");
+  console.log("   Technician : motiur49.tech@fixitnow.com  (REJECTED + account REMOVED)");
   console.log("   Customer   : nadia.cust@fixitnow.com");
+  console.log("   Customer   : jahid.cust@fixitnow.com     (BANNED)");
+  console.log("   Customer   : sadia8.cust@fixitnow.com    (BANNED + REMOVED)");
+  console.log("   Customer   : nusrat12.cust@fixitnow.com  (account REMOVED)");
   console.log("");
-  console.log(`   Categories    : ${categories.all.length} active (+1 inactive)`);
   console.log(
-    `   Technicians   : ${technicians.length}  (approved=${approved}  pending=${pending}  rejected=${rejected})`,
+    `   Categories    : ${categories.all.length} live  ${categories.pausedCount} paused  ${categories.deletedCount} removed`,
   );
-  console.log(`   Services      : ${serviceCount}`);
-  console.log(`   Customers     : ${customers.length}`);
+  console.log(
+    `   Technicians   : ${technicians.length}  (approved=${approved}  pending=${pending}  rejected=${rejected}  banned=${bannedTechnicians}  removed=${removedTechnicians})`,
+  );
+  console.log(
+    `   Services      : ${serviceCount}  (paused=${pausedServices}  removed by owner=${removedByOwner}  removed by admin=${removedByAdmin}  removed while paused=${pausedBeforeRemoval})`,
+  );
+  console.log(
+    `   Customers     : ${customers.length}  (banned=${bannedCustomers}  removed=${removedCustomers})`,
+  );
   console.log(
     `   Bookings      : ${bookings.length}  (min ${minPerTech} per approved technician)`,
   );

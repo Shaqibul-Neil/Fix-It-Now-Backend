@@ -10,6 +10,7 @@ import type {
   TCreateTechnicianProfilePayload,
   TListTechniciansQuery,
   TReviewTechnicianPayload,
+  TUpdateAvailabilityStatusPayload,
   TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
 import { sendResponse } from "../../../utils/sendResponse";
@@ -51,6 +52,27 @@ class TechnicianController {
       data: profile,
     });
   });
+
+  //----------Toggle Availability---------
+  updateAvailabilityStatus = asyncHandler(
+    async (req: TRequest, res: TResponse) => {
+      const payload = req.body as TUpdateAvailabilityStatusPayload;
+      const profile = await this.technicianService.updateAvailabilityStatus(
+        req.user.id,
+        payload,
+      );
+
+      sendResponse({
+        res,
+        status: httpStatus.OK,
+        success: true,
+        message: payload.isAvailable
+          ? "You are now accepting bookings"
+          : "You are no longer accepting bookings",
+        data: profile,
+      });
+    },
+  );
 
   //----------Get My Profile---------
   getMyProfile = asyncHandler(async (req: TRequest, res: TResponse) => {

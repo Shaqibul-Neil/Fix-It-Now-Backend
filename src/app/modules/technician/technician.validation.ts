@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
+import {
+  TTechnicianApprovalStatus,
+  TUserStatus,
+} from "../../../../generated/prisma/enums";
+import { includeDeletedQuerySchema } from "../../../utils/recordStatus";
 
 const basicInfoSchema = z.object({
   phone: z
@@ -7,7 +11,7 @@ const basicInfoSchema = z.object({
     .trim()
     .min(6, "Phone number is too short")
     .max(11, "Phone number is too long"),
-  avatar: z.url("Avatar must be a valid URL").optional(),
+  avatar: z.url("Avatar must be a valid URL").max(2048).nullable().optional(),
   bio: z
     .string()
     .trim()
@@ -63,6 +67,13 @@ export const updateTechnicianProfileSchema = z.object({
   }),
 });
 
+// The technician's own "am I taking work right now" switch. Kept out of updateTechnicianProfileSchema on purpose: that one is the onboarding form and its fields are reviewed by an admin, while this is a toggle flipped several times a week and reviewed by nobody.
+export const updateAvailabilityStatusSchema = z.object({
+  body: z.object({
+    isAvailable: z.boolean(),
+  }),
+});
+
 export const listTechniciansSchema = z.object({
   query: z.object({
     city: z.string().trim().optional(),
@@ -81,6 +92,8 @@ export const technicianIdParamSchema = z.object({
 export const adminListTechniciansSchema = z.object({
   query: listTechniciansSchema.shape.query.extend({
     approvalStatus: z.enum(TTechnicianApprovalStatus).optional(),
+    accountStatus: z.enum(TUserStatus).optional(),
+    includeDeleted: includeDeletedQuerySchema,
   }),
 });
 
@@ -121,6 +134,10 @@ export type TCreateTechnicianProfilePayload = z.infer<
 
 export type TUpdateTechnicianProfilePayload = z.infer<
   typeof updateTechnicianProfileSchema
+>["body"];
+
+export type TUpdateAvailabilityStatusPayload = z.infer<
+  typeof updateAvailabilityStatusSchema
 >["body"];
 
 export type TAdminListTechniciansQuery = z.infer<

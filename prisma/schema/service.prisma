@@ -1,22 +1,26 @@
 model Service {
-  id                String   @id @default(uuid()) @db.Uuid
-  technicianId      String   @map("technician_id") @db.Uuid
-  categoryId        String   @map("category_id") @db.Uuid
-  title             String   @db.VarChar(150)
-  description       String?  @db.Text
-  price             Decimal  @db.Decimal(10, 2)
-  estimatedDuration Int?     @map("estimated_duration")
-  isActive          Boolean  @default(true) @map("is_active")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id                String    @id @default(uuid()) @db.Uuid
+  technicianId      String    @map("technician_id") @db.Uuid
+  categoryId        String    @map("category_id") @db.Uuid
+  title             String    @db.VarChar(150)
+  description       String?   @db.Text
+  price             Decimal   @db.Decimal(10, 2)
+  estimatedDuration Int?      @map("estimated_duration")
+  isActive          Boolean   @default(true) @map("is_active")
+  deletedAt         DateTime? @map("deleted_at")
+  deletedBy         String?   @map("deleted_by") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
-  category   Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  bookings   Booking[]
-  reviews    Review[]
+  technician    TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  bookings      Booking[]
+  reviews       Review[]
+  deletedByUser User?             @relation("ServiceRemovedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
 
   @@index([technicianId])
-  @@index([categoryId])
+  @@index([categoryId, isActive])
+  @@index([deletedAt])
   @@map("services")
 }

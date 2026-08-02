@@ -24,9 +24,16 @@ export class AuthService {
 
     const isUserExist = await prisma.user.findUnique({
       where: { email },
+      select: { id: true, deletedAt: true },
     });
+
     if (isUserExist) {
-      throw new AppError("Email already registered", httpStatus.CONFLICT);
+      throw new AppError(
+        isUserExist.deletedAt
+          ? "This email belongs to a removed account. Contact support to restore it."
+          : "Email already registered",
+        httpStatus.CONFLICT,
+      );
     }
 
     const hashedPassword = await bcrypt.hash(
@@ -84,6 +91,13 @@ export class AuthService {
       );
     }
 
+    if (user.deletedAt) {
+      throw new AppError(
+        "Login Failed - Invalid credentials.",
+        httpStatus.UNAUTHORIZED,
+      );
+    }
+
     //check user status
     if (user.status !== TUserStatus.ACTIVE) {
       throw new AppError(
@@ -128,7 +142,7 @@ export class AuthService {
     });
 
     //check user status
-    if (user.status !== TUserStatus.ACTIVE)
+    if (user.deletedAt || user.status !== TUserStatus.ACTIVE)
       throw new AppError(
         "Login Failed - The requested user is banned.",
         httpStatus.FORBIDDEN,
@@ -142,10 +156,18 @@ export class AuthService {
 
   //----------Current User--------
   async currentUser(userId: string) {
-    const user = await prisma.user.findUniqueOrThrow({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: AUTH_CURRENT_USER_SELECT,
     });
+
+    if (!user) {
+      throw new AppError(
+        "Unauthorized - This session is no longer valid. Please log in again.",
+        httpStatus.UNAUTHORIZED,
+      );
+    }
+
     return user;
   }
 

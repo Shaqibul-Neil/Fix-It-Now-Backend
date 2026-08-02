@@ -442,23 +442,141 @@ export const notifyServiceDeleted = async (
   serviceTitle: string,
   technicianUserId: string,
   technicianName: string,
+  removedByAdmin: boolean,
 ): Promise<void> => {
   const data = { target: "service" };
 
   const adminNotifications = await forAdmins({
     type: TNotificationType.SERVICE_DELETED,
     title: "Service deleted",
-    message: `"${serviceTitle}" is deleted by (${technicianName}).`,
+    message: removedByAdmin
+      ? `"${serviceTitle}" was removed by an admin.`
+      : `"${serviceTitle}" was removed by ${technicianName}.`,
     data,
   });
 
-  const technicianNotifications = {
-    userId: technicianUserId,
-    type: TNotificationType.SERVICE_DELETED,
-    title: "Service deleted",
-    message: `Your service "${serviceTitle}" has been deleted.`,
-    data,
-  };
+  const recipients = [...adminNotifications];
 
-  await tryNotifyMany([technicianNotifications, ...adminNotifications]);
+  if (removedByAdmin) {
+    recipients.push({
+      userId: technicianUserId,
+      type: TNotificationType.SERVICE_DELETED,
+      title: "Service removed",
+      message: `Your service "${serviceTitle}" was removed by an admin.`,
+      data,
+    });
+  }
+
+  await tryNotifyMany(recipients);
+};
+
+// Admin restores a removed service → owner Technician + Admin
+export const notifyServiceRestored = async (
+  serviceId: string,
+  serviceTitle: string,
+  technicianUserId: string,
+  restoredByAdmin: boolean,
+): Promise<void> => {
+  const data = { target: "service", serviceId };
+
+  const adminNotifications = await forAdmins({
+    type: TNotificationType.SERVICE_RESTORED,
+    title: "Service restored",
+    message: `"${serviceTitle}" was restored.`,
+    data,
+  });
+
+  const recipients = [...adminNotifications];
+  if (restoredByAdmin) {
+    recipients.push({
+      userId: technicianUserId,
+      type: TNotificationType.SERVICE_RESTORED,
+      title: "Service restored",
+      message: `Your service "${serviceTitle}" is live again.`,
+      data,
+    });
+  }
+
+  await tryNotifyMany(recipients);
+};
+
+// ---------- CATEGORY NOTIFICATIONS ----------
+export const notifyCategoryDeactivated = async (
+  categoryName: string,
+  affectedTechnicianUserIds: string[],
+): Promise<void> => {
+  const data = { target: "category" };
+  const adminNotifications = await forAdmins({
+    type: TNotificationType.CATEGORY_DEACTIVATED,
+    title: "Category unavailable",
+    message: `"${categoryName}" is no longer available. ${affectedTechnicianUserIds.length} technician(s) affected.`,
+    data,
+  });
+  const technicianNotifications = affectedTechnicianUserIds.map((userId) => ({
+    userId,
+    type: TNotificationType.CATEGORY_DEACTIVATED,
+    title: "Category unavailable",
+    message: `The "${categoryName}" category is no longer available, so your services under it are hidden from customers.`,
+    data,
+  }));
+  await tryNotifyMany([...technicianNotifications, ...adminNotifications]);
+};
+
+// The same category comes back → the same technicians + Admin
+export const notifyCategoryReactivated = async (
+  categoryName: string,
+  affectedTechnicianUserIds: string[],
+): Promise<void> => {
+  const data = { target: "category" };
+  const adminNotifications = await forAdmins({
+    type: TNotificationType.CATEGORY_REACTIVATED,
+    title: "Category available again",
+    message: `"${categoryName}" is available again.`,
+    data,
+  });
+  const technicianNotifications = affectedTechnicianUserIds.map((userId) => ({
+    userId,
+    type: TNotificationType.CATEGORY_REACTIVATED,
+    title: "Category available again",
+    message: `The "${categoryName}" category is available again — your services under it are visible to customers.`,
+    data,
+  }));
+
+  await tryNotifyMany([...technicianNotifications, ...adminNotifications]);
+};
+
+// ---------- ACCOUNT MODERATION NOTIFICATIONS ----------
+// An admin turned an account off or back on. A locked-out user cannot read  anything, so a ban or a removal is recorded for the admins only — it is an audit trail, not a message. Coming back is the opposite: that one the user  reads the moment they log in.
+export const notifyAccountAccessChanged = async (
+  targetUserId: string,
+  targetUserName: string,
+  isRegainingAccess: boolean,
+): Promise<void> => {
+  const data = { target: "user", userId: targetUserId };
+  const type = isRegainingAccess
+    ? TNotificationType.ACCOUNT_REACTIVATED
+    : TNotificationType.ACCOUNT_BANNED;
+
+  const adminNotifications = await forAdmins({
+    type,
+    title: isRegainingAccess ? "Account reactivated" : "Account suspended",
+    message: isRegainingAccess
+      ? `${targetUserName} can sign in again.`
+      : `${targetUserName} can no longer sign in.`,
+    data,
+  });
+
+  const recipients = [...adminNotifications];
+
+  if (isRegainingAccess) {
+    recipients.push({
+      userId: targetUserId,
+      type,
+      title: "Welcome back",
+      message: "Your account has been reactivated. You can sign in as usual.",
+      data,
+    });
+  }
+
+  await tryNotifyMany(recipients);
 };

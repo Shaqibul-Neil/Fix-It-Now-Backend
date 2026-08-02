@@ -6,6 +6,7 @@ import type {
   TCreateTechnicianProfilePayload,
   TListTechniciansQuery,
   TReviewTechnicianPayload,
+  TUpdateAvailabilityStatusPayload,
   TUpdateTechnicianProfilePayload,
 } from "./technician.validation";
 import {
@@ -18,8 +19,10 @@ import {
   getPagination,
 } from "../../../utils/utils";
 import {
+  ADMIN_TECHNICIAN_DETAILS_SELECT,
   ADMIN_TECHNICIAN_LIST_SELECT,
   PUBLIC_TECHNICIAN_WHERE,
+  TECHNICIAN_AVAILABILITY_SELECT,
   TECHNICIAN_DETAILS_SELECT,
   TECHNICIAN_LIST_SELECT,
   TECHNICIAN_MY_PROFILE_INCLUDE,
@@ -37,6 +40,7 @@ import {
   findTechnicianProfileByUserId,
 } from "./technician.model";
 import {
+  technicianAdminDetailsMapper,
   technicianAdminListMapper,
   technicianDetailsMapper,
   technicianListMapper,
@@ -45,8 +49,10 @@ import { getBookingStatusBreakdown } from "../booking/booking.model";
 import { TTechnicianApprovalStatus } from "../../../../generated/prisma/enums";
 
 export class TechnicianService {
+  //-------------------------------------------
   //-------------TECHNICIAN ACTIONS--------------
   //--------------Create / Onboard Profile-------------
+  //-------------------------------------------
   async createProfile(
     userId: string,
     payload: TCreateTechnicianProfilePayload,
@@ -82,7 +88,9 @@ export class TechnicianService {
     return profile;
   }
 
+  //-------------------------------------------
   //--------------Update Profile-------------
+  //-------------------------------------------
   async updateProfile(
     userId: string,
     payload: TUpdateTechnicianProfilePayload,
@@ -132,7 +140,28 @@ export class TechnicianService {
     return profile;
   }
 
+  //-------------------------------------------
+  //--------------Toggle Availability-------------
+  // The technician's own switch, separate from the weekly schedule they set in the availability module: that one says which hours they work, this one says whether they are working at all. Booking creation reads it, so flipping it off stops new bookings while leaving the profile, the services and the schedule exactly where they are.
+  //-------------------------------------------
+  async updateAvailabilityStatus(
+    userId: string,
+    payload: TUpdateAvailabilityStatusPayload,
+  ) {
+    // Throws a clean 404 when onboarding was never completed — a bare update
+    // would fail on the missing row with a Prisma error instead.
+    await findTechnicianProfileByUserId(userId);
+
+    return prisma.technicianProfile.update({
+      where: { userId },
+      data: { isAvailable: payload.isAvailable },
+      select: TECHNICIAN_AVAILABILITY_SELECT,
+    });
+  }
+
+  //-------------------------------------------
   //--------------Get Own Profile-------------
+  //-------------------------------------------
   async getMyProfile(userId: string) {
     const profile = await prisma.technicianProfile.findUnique({
       where: { userId },
@@ -147,8 +176,10 @@ export class TechnicianService {
     return profile;
   }
 
+  //-------------------------------------------
   //-------------PUBLIC ACTIONS--------------
   //--------------Public: technician list-------------
+  //-------------------------------------------
   async getAllTechnicians(query: TListTechniciansQuery) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
 
@@ -173,7 +204,9 @@ export class TechnicianService {
     };
   }
 
+  //-------------------------------------------
   //---------Public: technician profile + reviews-------------
+  //-------------------------------------------
   async getTechnicianById(id: string) {
     const technician = await prisma.technicianProfile.findFirst({
       where: { id, ...PUBLIC_TECHNICIAN_WHERE },
@@ -185,7 +218,9 @@ export class TechnicianService {
     return technicianDetailsMapper(technician);
   }
 
+  //-------------------------------------------
   //--------------ADMIN: technician list + completed jobs-------------
+  //-------------------------------------------
   async getAllTechniciansForAdmin(query: TAdminListTechniciansQuery) {
     const { page, limit, skip } = getPagination(query.page, query.limit);
     const where = buildAdminTechnicianFilter(query);
@@ -210,11 +245,13 @@ export class TechnicianService {
     };
   }
 
+  //-------------------------------------------
   //--------------ADMIN: technician detail + bookings by status-------------
+  //-------------------------------------------
   async getTechnicianByIdForAdmin(id: string) {
     const technician = await prisma.technicianProfile.findUnique({
       where: { id },
-      select: TECHNICIAN_DETAILS_SELECT,
+      select: ADMIN_TECHNICIAN_DETAILS_SELECT,
     });
     if (!technician) {
       throw new AppError("Technician not found.", httpStatus.NOT_FOUND);
@@ -224,10 +261,12 @@ export class TechnicianService {
       technicianId: id,
     });
 
-    return { ...technicianDetailsMapper(technician), bookingsByStatus };
+    return { ...technicianAdminDetailsMapper(technician), bookingsByStatus };
   }
 
+  //-------------------------------------------
   //--------------ADMIN: approve or reject an onboarding-------------
+  //-------------------------------------------
   async reviewTechnician(
     adminId: string,
     technicianId: string,
@@ -239,6 +278,13 @@ export class TechnicianService {
     if (technician.approvalStatus === payload.status) {
       throw new AppError(
         `This technician is already ${payload.status.toLowerCase()}.`,
+        httpStatus.CONFLICT,
+      );
+    }
+
+    if (technician.approvalStatus === TTechnicianApprovalStatus.APPROVED) {
+      throw new AppError(
+        "This technician is already approved. To stop them taking work, ban the account from user management instead.",
         httpStatus.CONFLICT,
       );
     }

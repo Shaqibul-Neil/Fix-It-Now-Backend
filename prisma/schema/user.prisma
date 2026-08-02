@@ -7,6 +7,7 @@ model User {
   role         TRole       @default(CUSTOMER)
   status       TUserStatus @default(ACTIVE)
   lastLoginAt  DateTime?   @map("last_login_at")
+  deletedAt    DateTime?   @map("deleted_at")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt() @map("updated_at")
 
@@ -14,6 +15,8 @@ model User {
   technicianProfile TechnicianProfile?
   customerProfile   CustomerProfile?
   notifications     Notification[]
+  removedServices   Service[]          @relation("ServiceRemovedBy")
 
+  @@index([deletedAt])
   @@map("users")
 }

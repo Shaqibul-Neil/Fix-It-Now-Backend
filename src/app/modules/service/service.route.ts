@@ -5,6 +5,7 @@ import type { TRouteModule } from "../../routes/route.types";
 import { serviceController } from "./service.controller";
 import {
   createServiceSchema,
+  listManagedServicesSchema,
   listServicesSchema,
   serviceIdParamSchema,
   updateServiceSchema,
@@ -24,7 +25,10 @@ export const serviceRoute: TRouteModule = {
     {
       method: "get",
       path: "/technician/services/my-services",
-      middlewares: roleRoute([TRole.TECHNICIAN]),
+      middlewares: roleRoute(
+        [TRole.TECHNICIAN],
+        validateRequest(listManagedServicesSchema),
+      ),
       handler: serviceController.getMyServices,
     },
     {
@@ -45,6 +49,16 @@ export const serviceRoute: TRouteModule = {
       ),
       handler: serviceController.updateService,
     },
+    //restore - technician (own) OR admin
+    {
+      method: "patch",
+      path: "/services/:id/restore",
+      middlewares: roleRoute(
+        [TRole.TECHNICIAN, TRole.ADMIN],
+        validateRequest(serviceIdParamSchema),
+      ),
+      handler: serviceController.restoreService,
+    },
     // delete — technician (own) OR admin
     {
       method: "delete",
@@ -62,7 +76,7 @@ export const serviceRoute: TRouteModule = {
       path: "/services/admin/list",
       middlewares: roleRoute(
         [TRole.ADMIN],
-        validateRequest(listServicesSchema),
+        validateRequest(listManagedServicesSchema),
       ),
       handler: serviceController.getAllServicesForAdmin,
     },

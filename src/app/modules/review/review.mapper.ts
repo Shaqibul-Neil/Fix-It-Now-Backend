@@ -1,5 +1,5 @@
 import type { Prisma } from "../../../../generated/prisma/client";
-import { createFullName } from "../../../utils/utils";
+import { createFullName, toParagraphs } from "../../../utils/utils";
 import type {
   ADMIN_REVIEW_SELECT,
   PUBLIC_REVIEW_SELECT,
@@ -22,6 +22,7 @@ export const reviewListMapper = (
       review.technician.users.firstName,
       review.technician.users.lastName,
     ),
+    avatar: review.technician.avatar,
   },
   service: {
     id: review.service.id,
@@ -36,7 +37,7 @@ export const publicReviewMapper = (
 ) => ({
   id: review.id,
   rating: review.rating,
-  comment: review.comment,
+  comment: toParagraphs(review.comment),
   createdAt: review.createdAt,
   customer: {
     id: review.customer.id,
@@ -44,6 +45,7 @@ export const publicReviewMapper = (
       review.customer.users.firstName,
       review.customer.users.lastName,
     ),
+    avatar: review.customer.avatar,
   },
   service: {
     id: review.service.id,
@@ -64,6 +66,7 @@ export const adminReviewMapper = (
       review.technician.users.firstName,
       review.technician.users.lastName,
     ),
+    avatar: review.technician.avatar,
     email: review.technician.users.email,
   },
   customer: {
@@ -73,5 +76,6 @@ export const adminReviewMapper = (
       review.customer.users.lastName,
     ),
     email: review.customer.users.email,
+    avatar: review.customer.avatar,
   },
 });

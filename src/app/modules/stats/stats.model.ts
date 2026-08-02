@@ -48,7 +48,10 @@ export const groupBookingByCategory = async (
 
 //get all category names
 export const getAllCategoryNames = async (): Promise<string[]> => {
-  const result = await prisma.category.findMany({ select: { name: true } });
+  const result = await prisma.category.findMany({
+    where: { deletedAt: null },
+    select: { name: true },
+  });
   return result.map((r) => r.name);
 };
 

@@ -7,6 +7,7 @@ export const buildUserFilter = (
   return {
     ...(query.role && { role: query.role }),
     ...(query.status && { status: query.status }),
+    ...(query.includeDeleted ? {} : { deletedAt: null }),
     ...(query.search && {
       OR: [
         { firstName: { contains: query.search, mode: "insensitive" } },

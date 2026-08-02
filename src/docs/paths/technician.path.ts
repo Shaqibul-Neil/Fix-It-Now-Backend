@@ -54,6 +54,52 @@ export const technicianPaths = {
       },
     },
   },
+  "/technicians/profile/availability": {
+    patch: {
+      tags: ["Technicians"],
+      summary: "Technician: turn bookings on or off",
+      description:
+        "One switch, flipped by the technician themselves. Turning it off stops new bookings — `POST /bookings` " +
+        "refuses with a 400 — while the profile, the services and the weekly schedule all stay exactly where they are, " +
+        "so turning it back on needs nothing else.\n\n" +
+        "The technician stays in the public list either way: being on leave is not the same as being gone.\n\n" +
+        "Sending the value it already has is fine and returns 200. A toggle is naturally idempotent and nothing here " +
+        "fires a notification a repeat could duplicate.",
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/TechnicianAvailabilityUpdate" },
+            examples: {
+              pause: { summary: "Stop taking new bookings", value: { isAvailable: false } },
+              resume: { summary: "Start taking bookings again", value: { isAvailable: true } },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The new state.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  id: { type: "string", format: "uuid", description: "TechnicianProfile id." },
+                  isAvailable: { type: "boolean", example: false },
+                },
+              },
+            },
+          },
+        },
+        "400": { $ref: "#/components/responses/ValidationError" },
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "403": { $ref: "#/components/responses/Forbidden" },
+        "404": { description: "No technician profile yet — finish onboarding first." },
+      },
+    },
+  },
   "/technicians/profile/me": {
     get: {
       tags: ["Technicians"],
@@ -92,9 +138,11 @@ export const technicianPaths = {
       summary: "Public: technician details",
       description:
         "404 for a PENDING, REJECTED or banned technician — a direct link must not expose a profile the list hides.\n\n" +
+        "`reviews` is the **5 most recent published reviews only**, not the archive. `totalReviews` is the real " +
+        "count; send the customer to `GET /technicians/{id}/reviews` for the paginated rest.\n\n" +
         "Carries the technician's weekly `availability` so the profile page can show it without a second call. " +
-        "Do not drive the booking panel from this response though: it also drags along 20 reviews and every service. " +
-        "The panel wants `GET /technicians/{id}/availability`.",
+        "Do not drive the booking panel from this response though: it also drags along the review preview and " +
+        "every service. The panel wants `GET /technicians/{id}/availability`.",
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "TechnicianProfile id." }],
       responses: {
         "200": {
@@ -115,7 +163,12 @@ export const technicianPaths = {
       description:
         "One endpoint backs all four dashboard tabs. Leave `approvalStatus` off for 'All'; " +
         "pass it to filter a single bucket. PENDING is sorted oldest-first (a review queue); " +
-        "every other tab is sorted by rating.",
+        "every other tab is sorted by rating.\n\n" +
+        "`approvalStatus` and `accountStatus` filter two unrelated things — the review decision and whether the " +
+        "account can sign in — so they combine freely: `?approvalStatus=APPROVED&accountStatus=BANNED` is the list " +
+        "of approved technicians who have since been banned.\n\n" +
+        "This list is read-only. Banning and removing an account happen under `/admin/users/{id}`, using the " +
+        "`userId` on each row.",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -125,6 +178,14 @@ export const technicianPaths = {
           schema: { $ref: "#/components/schemas/TechnicianApprovalStatus" },
           description: "Tab filter. Omit to get technicians in every state.",
         },
+        {
+          name: "accountStatus",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["ACTIVE", "BANNED"] },
+          description: "Account state, independent of the approval decision.",
+        },
+        { $ref: "#/components/parameters/IncludeDeletedParam" },
         { name: "city", in: "query", required: false, schema: { type: "string" } },
         { name: "search", in: "query", required: false, schema: { type: "string" }, description: "Matches first or last name." },
         { name: "minRating", in: "query", required: false, schema: { type: "number", minimum: 1, maximum: 5 } },
@@ -132,7 +193,7 @@ export const technicianPaths = {
         { $ref: "#/components/parameters/LimitParam" },
       ],
       responses: {
-        "200": paginatedList("#/components/schemas/TechnicianAdminListItem", "Paginated admin technician list.", 44),
+        "200": paginatedList("#/components/schemas/TechnicianAdminListItem", "Paginated admin technician list.", 50),
         "400": { $ref: "#/components/responses/ValidationError" },
         "401": { $ref: "#/components/responses/Unauthorized" },
         "403": { $ref: "#/components/responses/Forbidden" },
@@ -144,7 +205,10 @@ export const technicianPaths = {
       tags: ["Technicians"],
       summary: "Admin: technician details + booking breakdown",
       description:
-        "Same detail payload as the public route but with no approval filter, plus a per-status booking count.",
+        "Answers for technicians in every state, so a PENDING application is reviewed from the same screen an " +
+        "approved profile is inspected from.\n\n" +
+        "Carries what the public route leaves out — the review decision, the account state, the phone number, and " +
+        "every service including the ones switched off or removed — plus a per-status booking count.",
       security: [{ bearerAuth: [] }],
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "TechnicianProfile id." }],
       responses: {
@@ -164,9 +228,15 @@ export const technicianPaths = {
       tags: ["Technicians"],
       summary: "Admin: approve or reject a technician",
       description:
-        "Records the review decision on the profile and notifies the technician. " +
-        "Approving unlocks publishing services and public listing; rejecting hides them until they resubmit. " +
-        "`id` is the TechnicianProfile id (the `id` from the admin list), not the User id.",
+        "Records the onboarding decision and notifies the technician. Approving unlocks publishing services and " +
+        "public listing; rejecting hides them until they resubmit. `id` is the TechnicianProfile id (the `id` from " +
+        "the admin list), not the User id.\n\n" +
+        "**The decision is one-way.** `PENDING → APPROVED`, `PENDING → REJECTED` and `REJECTED → APPROVED` are all " +
+        "allowed, but an approved technician can never be sent back to REJECTED — that returns 409.\n\n" +
+        "This is deliberate. Approval answers *did this application pass*, not *is this technician behaving*, and " +
+        "the second question has its own answer: ban the account at `PATCH /admin/users/{id}` using the `userId` on " +
+        "the row. A ban only an admin can lift; a rejection the technician can undo themselves, because editing " +
+        "their profile puts a REJECTED row back in the queue and clears the rejection reason with it.",
       security: [{ bearerAuth: [] }],
       parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
       requestBody: {

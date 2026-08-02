@@ -87,9 +87,16 @@ export function makePhone(prefix: string, index: number): string {
   return `${prefix}${String(index).padStart(6, "0")}`;
 }
 
-// deterministic placeholder avatar, no network call at seed time
-export function makeAvatar(seedText: string): string {
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seedText)}`;
+// Real-photo avatars from randomuser.me. They are plain static JPEGs on a CDN —
+// no API key, no rate limit, and the same index always returns the same face, so
+// a re-seed does not shuffle everybody's picture. Initials-only SVGs looked like
+// placeholders on the profile cards; these look like a real marketplace.
+const PORTRAITS_PER_GENDER = 100; // randomuser serves 0..99 for each
+
+export type AvatarGender = "men" | "women";
+
+export function makeAvatar(gender: AvatarGender, index: number): string {
+  return `https://randomuser.me/api/portraits/${gender}/${index % PORTRAITS_PER_GENDER}.jpg`;
 }
 
 // insert big arrays in chunks so a single statement never gets too large

@@ -3,6 +3,8 @@ import {
   Prisma,
   TBookingStatus,
   TRole,
+  TTechnicianApprovalStatus,
+  TUserStatus,
 } from "../../../../generated/prisma/client";
 import type {
   TCreateBookingPayload,
@@ -13,7 +15,10 @@ import { findCustomerProfileByUserId } from "../customer/customer.model";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../utils/appError";
 import { getDayOfWeek, getTimeString } from "../../../utils/date";
-import { CUSTOMER_CANCELABLE } from "./booking.constants";
+import {
+  ACTIVE_BOOKING_STATUSES,
+  CUSTOMER_CANCELABLE,
+} from "./booking.constants";
 import { createFullName, getPagination } from "../../../utils/utils";
 import { buildBookingFilter, getBookingInclude } from "./booking.utils";
 import {
@@ -113,8 +118,10 @@ export class BookingService {
     };
   }
 
+  //-------------------------------------------
   //-------------CUSTOMER ACTIONS----------
   //--------------Create Booking-------------
+  //-------------------------------------------
   async createBooking(userId: string, payload: TCreateBookingPayload) {
     //get the customer information
     const customer = await findCustomerProfileByUserId(userId);
@@ -124,14 +131,40 @@ export class BookingService {
       where: { id: payload.serviceId },
       select: BOOKING_CREATE_SERVICE_SELECT,
     });
-    if (!service) {
+    if (!service || service.deletedAt) {
       throw new AppError("Service not found.", httpStatus.NOT_FOUND);
     }
     if (!service.isActive) {
       throw new AppError("This service is not active.", httpStatus.BAD_REQUEST);
     }
+    if (!service.category.isActive || service.category.deletedAt) {
+      throw new AppError(
+        "This service category is no longer available.",
+        httpStatus.BAD_REQUEST,
+      );
+    }
+    const technicianAccount = service.technician.users;
+    const isTechnicianBookable =
+      service.technician.approvalStatus ===
+        TTechnicianApprovalStatus.APPROVED &&
+      technicianAccount.status === TUserStatus.ACTIVE &&
+      !technicianAccount.deletedAt;
 
-    //check if the technician is available
+    if (!isTechnicianBookable) {
+      throw new AppError(
+        "This technician is not accepting bookings right now.",
+        httpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!service.technician.isAvailable) {
+      throw new AppError(
+        "This technician is currently unavailable. Please try again later.",
+        httpStatus.BAD_REQUEST,
+      );
+    }
+
+    //check if the technician is available at the requested time
     await this.technicianAvailability(
       service.technicianId,
       payload.scheduledAt,
@@ -143,12 +176,7 @@ export class BookingService {
         technicianId: service.technicianId,
         scheduledAt: payload.scheduledAt,
         status: {
-          in: [
-            TBookingStatus.REQUESTED,
-            TBookingStatus.ACCEPTED,
-            TBookingStatus.PAID,
-            TBookingStatus.IN_PROGRESS,
-          ],
+          in: ACTIVE_BOOKING_STATUSES,
         },
       },
       select: { id: true },
@@ -199,7 +227,9 @@ export class BookingService {
     return newBooking;
   }
 
+  //-------------------------------------------
   //--------------Cancel Booking-------------
+  //-------------------------------------------
   async cancelBooking(userId: string, bookingId: string) {
     //get the customer information
     const customer = await findCustomerProfileByUserId(userId);
@@ -255,7 +285,9 @@ export class BookingService {
     return cancelledBooking;
   }
 
+  //-------------------------------------------
   //-----------Get Customer's Bookings List-----------
+  //-------------------------------------------
   async getCustomerBookings(userId: string, query: TListBookingsQuery) {
     const customer = await findCustomerProfileByUserId(userId);
     return this.bookingLists(
@@ -266,7 +298,9 @@ export class BookingService {
     );
   }
 
+  //-------------------------------------------
   //-----------Booking Details-----------
+  //-------------------------------------------
   async getBookingDetails(userId: string, role: TRole, bookingId: string) {
     const include: Prisma.BookingInclude = getBookingInclude(role);
 
@@ -300,8 +334,10 @@ export class BookingService {
     return booking;
   }
 
+  //-------------------------------------------
   //-------------TECHNICIAN ACTIONS----------
   //----------Get Technician's Bookings List---------
+  //-------------------------------------------
   async getTechnicianBookings(userId: string, query: TListBookingsQuery) {
     const technician = await findTechnicianProfileByUserId(userId);
 
@@ -315,7 +351,9 @@ export class BookingService {
     );
   }
 
+  //-------------------------------------------
   //--------------Update Booking Status-------------
+  //-------------------------------------------
   async updateStatusByTechnician(
     userId: string,
     bookingId: string,
@@ -425,8 +463,10 @@ export class BookingService {
     return updatedBooking;
   }
 
+  //-------------------------------------------
   //-------------ADMIN ACTIONS----------
   //----------Get All Bookings List---------
+  //-------------------------------------------
   async getAllBookings(query: TListBookingsQuery) {
     return this.bookingLists(
       {},

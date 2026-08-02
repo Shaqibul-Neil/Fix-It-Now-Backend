@@ -6,6 +6,7 @@ export const AUTH_REFRESH_SELECT = {
   email: true,
   role: true,
   status: true,
+  deletedAt: true,
 } as const satisfies Prisma.UserSelect;
 
 // current authenticated user (client-facing)
@@ -16,6 +17,7 @@ export const AUTH_CURRENT_USER_SELECT = {
   email: true,
   role: true,
   status: true,
+  deletedAt: true,
 } as const satisfies Prisma.UserSelect;
 
 // /auth/me only — the dashboard needs to know if onboarding is still pending.
