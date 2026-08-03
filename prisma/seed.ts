@@ -5,6 +5,7 @@ import { seedCategories } from "./seeds/category.seed";
 import { seedTechnicians, bookableTechnicians } from "./seeds/technician.seed";
 import { seedCustomers } from "./seeds/customer.seed";
 import { seedBookings } from "./seeds/booking.seed";
+import { seedPowerCustomer } from "./seeds/power.customer.seed";
 import { seedPayments } from "./seeds/payment.seed";
 import { seedReviews } from "./seeds/review.seed";
 import { seedNotifications } from "./seeds/notification.seed";
@@ -62,17 +63,27 @@ async function main() {
   console.log("📅 Seeding bookings + status history...");
   const bookings = await seedBookings(technicians, customers);
 
+  // One account with a year and a half of history, so the customer dashboard
+  // has something to show. Everything downstream — payments, reviews,
+  // notifications — reads the combined list, or this customer would end up with
+  // bookings nobody ever paid for or reviewed.
+  console.log("🏠 Seeding power customer...");
+  const power = await seedPowerCustomer(technicians, passwordHash);
+
+  const allBookings = [...bookings, ...power.bookings];
+  const allCustomers = [...customers, power.customer];
+
   console.log("💳 Seeding payments...");
-  const payments = await seedPayments(bookings);
+  const payments = await seedPayments(allBookings);
 
   console.log("⭐ Seeding reviews...");
-  const reviewCount = await seedReviews(bookings, technicians);
+  const reviewCount = await seedReviews(allBookings, technicians);
 
   console.log("🔔 Seeding notifications...");
   const notificationCount = await seedNotifications(
-    bookings,
+    allBookings,
     technicians,
-    customers,
+    allCustomers,
     categories,
     admins,
   );
@@ -92,10 +103,10 @@ async function main() {
   ).length;
   const removedTechnicians = technicians.filter((t) => t.isRemoved).length;
 
-  const bannedCustomers = customers.filter(
+  const bannedCustomers = allCustomers.filter(
     (c) => c.status === TUserStatus.BANNED,
   ).length;
-  const removedCustomers = customers.filter((c) => c.isRemoved).length;
+  const removedCustomers = allCustomers.filter((c) => c.isRemoved).length;
 
   const allServices = technicians.flatMap((t) => t.services);
   const serviceCount = allServices.length;
@@ -122,7 +133,7 @@ async function main() {
 
   const byStatus = Object.values(TBookingStatus)
     .map((status) => {
-      const count = bookings.filter((b) => b.status === status).length;
+      const count = allBookings.filter((b) => b.status === status).length;
       return `${status}=${count}`;
     })
     .join("  ");
@@ -133,7 +144,7 @@ async function main() {
 
   const bookable = bookableTechnicians(technicians);
   const perTech = bookable.map(
-    (t) => bookings.filter((b) => b.technicianId === t.profileId).length,
+    (t) => allBookings.filter((b) => b.technicianId === t.profileId).length,
   );
   const minPerTech = Math.min(...perTech);
 
@@ -146,6 +157,7 @@ async function main() {
   console.log("   Technician : babul43.tech@fixitnow.com   (BANNED)");
   console.log("   Technician : alamin48.tech@fixitnow.com  (APPROVED + account REMOVED)");
   console.log("   Technician : motiur49.tech@fixitnow.com  (REJECTED + account REMOVED)");
+  console.log(`   Customer   : ${power.email}      (DASHBOARD DEMO — ${power.bookings.length} bookings)`);
   console.log("   Customer   : nadia.cust@fixitnow.com");
   console.log("   Customer   : jahid.cust@fixitnow.com     (BANNED)");
   console.log("   Customer   : sadia8.cust@fixitnow.com    (BANNED + REMOVED)");
@@ -161,10 +173,10 @@ async function main() {
     `   Services      : ${serviceCount}  (paused=${pausedServices}  removed by owner=${removedByOwner}  removed by admin=${removedByAdmin}  removed while paused=${pausedBeforeRemoval})`,
   );
   console.log(
-    `   Customers     : ${customers.length}  (banned=${bannedCustomers}  removed=${removedCustomers})`,
+    `   Customers     : ${allCustomers.length}  (banned=${bannedCustomers}  removed=${removedCustomers})`,
   );
   console.log(
-    `   Bookings      : ${bookings.length}  (min ${minPerTech} per approved technician)`,
+    `   Bookings      : ${allBookings.length}  (min ${minPerTech} per approved technician, ${power.bookings.length} on the demo account)`,
   );
   console.log(`   ${byStatus}`);
   console.log(`   Payments      : ${payments.total}`);

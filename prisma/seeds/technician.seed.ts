@@ -198,6 +198,7 @@ const PROFESSIONAL_TITLES: Record<string, string> = {
   "ac-repair": "AC Service Engineer",
   carpentry: "Furniture & Carpentry Expert",
   "appliance-repair": "Home Appliance Technician",
+  "pest-control": "Licensed Pest Control Operator",
 };
 
 // The sidebar counts these strings, so two technicians in the same trade have to
@@ -251,6 +252,13 @@ const SKILLS_BY_SLUG: Record<string, string[]> = {
     "Microwave repair",
     "Oven servicing",
     "Water pump repair",
+  ],
+  "pest-control": [
+    "Cockroach treatment",
+    "Termite proofing",
+    "Bed bug treatment",
+    "Rodent control",
+    "Mosquito fogging",
   ],
 };
 

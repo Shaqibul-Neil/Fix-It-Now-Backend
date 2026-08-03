@@ -245,7 +245,9 @@ function scheduleFor(status: TBookingStatus): Date {
 
 // The status trail a real booking would have left behind, with increasing
 // timestamps so GET /bookings/:id/history reads in order.
-function buildStatusHistory(
+// Exported because the power-customer seed writes its own bookings but must
+// leave the same trail behind them — one booking history builder, not two.
+export function buildStatusHistory(
   booking: SeededBooking,
   note: string | null,
 ): {

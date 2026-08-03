@@ -17,6 +17,8 @@ export const PUBLIC_CATEGORY_DETAILS_SELECT = {
   coverImage: true,
   tagline: true,
   commonIssues: true,
+  maintenanceType: true,
+  maintenanceIntervalDays: true,
 } as const satisfies Prisma.CategorySelect;
 
 export const PUBLIC_CATEGORY_SERVICE_WHERE = {

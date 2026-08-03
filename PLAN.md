@@ -266,3 +266,84 @@ Ship 1–4 for a rock-solid backend. Add 5–7 and you have a project an intervi
 ---
 
 *This roadmap is intentionally opinionated. Depth beats breadth in interviews — three features built thoughtfully (with tests, error handling, and a clear "why") outweigh ten half-finished ones.*
+
+---
+
+## 🔔 Deferred — Maintenance-due notifications
+
+**Status:** schema shipped, job intentionally not built yet.
+
+The customer dashboard already computes maintenance timing at **read time** —
+`completedAt + maintenanceIntervalDays` → `daysLeft`. No counter is stored, no
+cron is needed, and nothing can drift.
+
+A *notification* is a different thing: it has to reach the customer even when
+they never open the dashboard, and it has to fire exactly once. That needs a
+scheduled job. The schema side (`Category.maintenanceType`,
+`Category.maintenanceIntervalDays`) is already in place, so only the job
+remains.
+
+### What it needs when we build it
+
+**1. Enum** — `prisma/schema/enums.prisma`, add to `TNotificationType`:
+
+```prisma
+  MAINTENANCE_DUE
+```
+
+**2. Job logic** — `src/app/modules/notification/maintenance.job.ts`
+
+A counter is never decremented. The job finds the rows that crossed the line:
+
+1. `category.findMany` — `maintenanceType: RECURRING`, with interval
+2. `booking.groupBy` — `by: ["customerId", "categoryId"]`, `status: COMPLETED`,
+   `_max: { completedAt: true }`
+3. Filter in memory: `completedAt + intervalDays <= now`
+4. `customerProfile.findMany` — map `customerId` → `userId`
+   (notifications key on `userId`, bookings on the profile id)
+5. Dedupe — read existing `MAINTENANCE_DUE` notifications, build a key of
+   `userId:categoryId:servicedAt` from their `data` payload
+6. `notification.createMany`
+
+**Why `servicedAt` is part of the key:** when the customer books again,
+`completedAt` changes, so the key changes, so the *next* cycle is allowed to
+remind them — but the current one can't fire twice. A missed cron run is also
+harmless: those rows still match tomorrow.
+
+**3. Cron endpoint** — `POST /api/internal/maintenance-reminders`
+
+> **Security:** this route is reachable from the public internet. Without a
+> guard, anyone can hit it repeatedly and manufacture notification spam. Do not
+> deploy the route until `CRON_SECRET` is wired up.
+
+- Vercel cron sends `Authorization: Bearer <CRON_SECRET>`
+- On mismatch return **404**, not 401 — a 401 confirms the route exists
+- `config.cron_secret` reads `process.env.CRON_SECRET`; the same value goes in
+  the Vercel project env
+
+**4. Schedule** — `vercel.json`
+
+```json
+{
+  "crons": [
+    { "path": "/api/internal/maintenance-reminders", "schedule": "0 3 * * *" }
+  ]
+}
+```
+
+---
+
+## 🐢 Deferred — Deployment latency fixes
+
+Measured, not guessed. One DB round trip ≈ **145 ms**; the category details
+endpoint was 5 serial round trips deep ≈ **950 ms**. The cost is latency ×
+chain depth, not computation.
+
+- **`vercel.json` pins no `regions`** → the function defaults to `iad1`. If the
+  database lives elsewhere, every hop becomes 250–300 ms instead of 145 ms.
+- **`builds` + `routes` is the legacy v2 config** → it opts out of Vercel's
+  zero-config pipeline and Fluid Compute, so most requests pay a cold container
+  and a fresh TLS handshake to Postgres.
+- **Public GETs aren't cached** → `Cache-Control: public, s-maxage=60,
+  stale-while-revalidate=300` lets the CDN answer them with no DB hit at all.
+  This is the cheapest large win and should come before any denormalization.

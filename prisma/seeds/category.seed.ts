@@ -1,4 +1,5 @@
 import { prisma } from "../../src/lib/prisma";
+import { TMaintenanceType } from "../../generated/prisma/enums";
 import { daysAgo } from "./seed.helpers";
 
 export interface SeededCategory {
@@ -48,6 +49,20 @@ const paragraphs = (...parts: string[]): string => parts.join("\n\n");
 // card, a tagline for the hero, two paragraphs of overview and exactly six
 // common issues. The paused and removed ones carry it too — a restore has to
 // bring back a complete page, not a half-filled one.
+//
+// `maintenanceType` decides whether a category can appear on a customer's
+// maintenance list at all, and it is a judgement about the trade, not a number:
+//
+//   RECURRING  — the job comes back on a cycle whether anything broke or not
+//                (AC servicing, deep cleaning). Only these get a countdown.
+//   OCCASIONAL — real interval, but measured in years. Reminding somebody to
+//                repaint reads as nagging, so it is recorded and never nudged.
+//   NONE       — a breakdown. You do not schedule a fridge repair, so a
+//                reminder for one would be nonsense.
+//
+// `maintenanceIntervalDays` only means anything on a RECURRING row; everywhere
+// else it stays null so a later type change cannot quietly resurrect a stale
+// number.
 const categorySeed = [
   {
     name: "Plumbing",
@@ -70,6 +85,9 @@ const categorySeed = [
     photoId: "photo-1607472586893-edb57bdc0e39",
     isActive: true,
     removedDaysAgo: null,
+    // A tap starts dripping or it does not — nothing here runs on a clock.
+    maintenanceType: TMaintenanceType.NONE,
+    maintenanceIntervalDays: null,
   },
   {
     name: "Electrical",
@@ -92,6 +110,9 @@ const categorySeed = [
     photoId: "photo-1621905251189-08b45d6a269e",
     isActive: true,
     removedDaysAgo: null,
+    // Fault-driven. Wiring is not serviced on a schedule in a private flat.
+    maintenanceType: TMaintenanceType.NONE,
+    maintenanceIntervalDays: null,
   },
   {
     name: "Cleaning",
@@ -114,6 +135,10 @@ const categorySeed = [
     photoId: "photo-1581578731548-c64695cc6952",
     isActive: true,
     removedDaysAgo: null,
+    // The shortest cycle on the platform — a quarterly deep clean is the
+    // rhythm most flats settle into.
+    maintenanceType: TMaintenanceType.RECURRING,
+    maintenanceIntervalDays: 90,
   },
   {
     name: "Painting",
@@ -136,6 +161,10 @@ const categorySeed = [
     photoId: "photo-1562259949-e8e7689d7828",
     isActive: true,
     removedDaysAgo: null,
+    // Four to five years between coats. Long enough that a reminder would land
+    // after most people have moved, so it is recorded and never nudged.
+    maintenanceType: TMaintenanceType.OCCASIONAL,
+    maintenanceIntervalDays: null,
   },
   {
     name: "AC Repair",
@@ -158,6 +187,10 @@ const categorySeed = [
     photoId: "photo-1667983453881-4992fe86ab1b",
     isActive: true,
     removedDaysAgo: null,
+    // Twice a year — before summer and after it. Skipping a service is what
+    // turns a ৳800 clean into a compressor bill.
+    maintenanceType: TMaintenanceType.RECURRING,
+    maintenanceIntervalDays: 180,
   },
   {
     name: "Carpentry",
@@ -180,6 +213,9 @@ const categorySeed = [
     photoId: "photo-1544164560-adac3045edb2",
     isActive: true,
     removedDaysAgo: null,
+    // A hinge works loose when it works loose. No cycle to track.
+    maintenanceType: TMaintenanceType.NONE,
+    maintenanceIntervalDays: null,
   },
   {
     name: "Appliance Repair",
@@ -202,6 +238,10 @@ const categorySeed = [
     photoId: "photo-1585659722983-3a675dabf23d",
     isActive: true,
     removedDaysAgo: null,
+    // Annual: purifier filters and washing-machine descaling are the two jobs
+    // in here that come round on a calendar rather than after a breakdown.
+    maintenanceType: TMaintenanceType.RECURRING,
+    maintenanceIntervalDays: 365,
   },
 
   // ---------- switched off, not removed ----------
@@ -228,7 +268,16 @@ const categorySeed = [
     photoId: "photo-1600725935160-f67ee4f6084a",
     isActive: false,
     removedDaysAgo: null,
+    // Once every few years, and never on a schedule anyone would want reminding of.
+    maintenanceType: TMaintenanceType.NONE,
+    maintenanceIntervalDays: null,
   },
+  // ---------- live again ----------
+  // Pest control used to be seeded paused. It is live now because it is the
+  // clearest RECURRING trade on the platform, and the customer dashboard needs
+  // at least one recurring category nobody has booked yet — that is the row
+  // that renders as "Never booked", which is the only upsell on the page.
+  // Home Shifting above still covers the paused tab.
   {
     name: "Pest Control",
     slug: "pest-control",
@@ -248,8 +297,11 @@ const categorySeed = [
       "Ants trailing along a kitchen counter",
     ],
     photoId: "photo-1593999094742-4f5280054b23",
-    isActive: false,
+    isActive: true,
     removedDaysAgo: null,
+    // Twice a year is the standard contract — one treatment plus a follow-up.
+    maintenanceType: TMaintenanceType.RECURRING,
+    maintenanceIntervalDays: 180,
   },
 
   // ---------- removed ----------
@@ -278,6 +330,10 @@ const categorySeed = [
     photoId: "photo-1416879595882-3373a0480b5b",
     isActive: true,
     removedDaysAgo: 40,
+    // Monthly upkeep — the shortest cycle of the lot. Removed, so it proves a
+    // deleted category stays out of the maintenance list however recurring it is.
+    maintenanceType: TMaintenanceType.RECURRING,
+    maintenanceIntervalDays: 30,
   },
   {
     name: "CCTV Installation",
@@ -300,6 +356,9 @@ const categorySeed = [
     photoId: "photo-1557597774-9d273605dfa9",
     isActive: false,
     removedDaysAgo: 12,
+    // Installed once and left alone until something fails.
+    maintenanceType: TMaintenanceType.NONE,
+    maintenanceIntervalDays: null,
   },
 ];
 
@@ -323,6 +382,8 @@ export async function seedCategories(): Promise<SeededCategories> {
         coverImage: UNSPLASH_COVER(c.photoId),
         isActive: c.isActive,
         deletedAt: c.removedDaysAgo ? daysAgo(c.removedDaysAgo) : null,
+        maintenanceType: c.maintenanceType,
+        maintenanceIntervalDays: c.maintenanceIntervalDays,
       },
     });
 

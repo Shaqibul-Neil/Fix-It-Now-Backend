@@ -65,6 +65,33 @@ export const statsPaths = {
       },
     },
   },
+  "/stats/customer/dashboard": {
+    get: {
+      tags: ["Stats"],
+      summary: "Customer: own dashboard (cards, maintenance, technicians, live jobs)",
+      description:
+        "Scoped to the logged-in customer. Unlike the admin and technician dashboards " +
+        "this one takes no window selector — the numbers are lifetime counts and live " +
+        "state, so there is nothing to compare a period against.\n\n" +
+        "No spend or payment figures are returned. That is a product decision, not an " +
+        "omission: a running total of what a household has spent reads as a bill.\n\n" +
+        "The maintenance list is computed at read time from each category's cycle and " +
+        "the customer's last completed booking in it, so nothing can go stale.",
+      security: [{ bearerAuth: [] }],
+      responses: {
+        "200": {
+          description: "Customer dashboard payload.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CustomerDashboard" },
+            },
+          },
+        },
+        "401": { $ref: "#/components/responses/Unauthorized" },
+        "403": { $ref: "#/components/responses/Forbidden" },
+      },
+    },
+  },
   "/stats/technician/dashboard": {
     get: {
       tags: ["Stats"],

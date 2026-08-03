@@ -1,4 +1,7 @@
-import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  TMaintenanceType,
+  type Prisma,
+} from "../../../../generated/prisma/client";
 import { createFullName, toParagraphs } from "../../../utils/utils";
 import type {
   ADMIN_CATEGORY_SELECT,
@@ -101,7 +104,11 @@ export const categoryDetailsMapper = ({
   responseMinutes: stats.responseMinutes,
   priceRange: stats.priceRange,
   commonIssues: category.commonIssues,
-
+  maintenanceType: category.maintenanceType,
+  maintenanceIntervalDays:
+    category.maintenanceType === TMaintenanceType.RECURRING
+      ? category.maintenanceIntervalDays
+      : null,
   topTechnicians,
   topServices,
 });

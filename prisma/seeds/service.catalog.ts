@@ -65,4 +65,12 @@ export const SERVICE_CATALOG: Record<string, CatalogItem[]> = {
     { title: "Geyser installation", description: "Mount and wire an instant or storage geyser.", price: 2000, estimatedDuration: 120 },
     { title: "Electric oven diagnosis", description: "Inspect heating elements and thermostat.", price: 950, estimatedDuration: 60 },
   ],
+  "pest-control": [
+    { title: "Cockroach treatment", description: "Gel and spray treatment for kitchen and drain lines.", price: 1600, estimatedDuration: 90 },
+    { title: "Termite proofing", description: "Drill-and-inject treatment for frames and skirting.", price: 4500, estimatedDuration: 240 },
+    { title: "Bed bug treatment", description: "Mattress, frame and skirting spray with a follow-up visit.", price: 2800, estimatedDuration: 150 },
+    { title: "Rodent control", description: "Bait stations and entry-point sealing.", price: 2000, estimatedDuration: 120 },
+    { title: "Mosquito fogging", description: "Thermal fogging of the flat and any stagnant points.", price: 1300, estimatedDuration: 60 },
+    { title: "General disinfection", description: "Whole-flat surface disinfection with named chemicals.", price: 2200, estimatedDuration: 120 },
+  ],
 };

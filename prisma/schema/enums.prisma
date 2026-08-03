@@ -9,6 +9,12 @@ enum TUserStatus {
   BANNED
 }
 
+enum TMaintenanceType {
+  RECURRING
+  OCCASIONAL
+  NONE
+}
+
 enum TTechnicianApprovalStatus {
   PENDING
   APPROVED

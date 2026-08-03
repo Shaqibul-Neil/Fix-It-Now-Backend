@@ -183,6 +183,8 @@ export class CategoryService {
         image: payload.image,
         coverImage: payload.coverImage,
         isActive: payload.isActive,
+        maintenanceType: payload.maintenanceType,
+        maintenanceIntervalDays: payload.maintenanceIntervalDays,
       },
       select: ADMIN_CATEGORY_SELECT,
     });

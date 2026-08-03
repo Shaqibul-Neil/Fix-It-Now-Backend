@@ -61,6 +61,32 @@ export const categorySchemas = {
           "Geyser not heating or leaking",
         ],
       },
+      maintenanceType: {
+        type: "string",
+        enum: ["RECURRING", "OCCASIONAL", "NONE"],
+        default: "NONE",
+        description:
+          "Whether this trade comes back on a cycle, and therefore whether it can " +
+          "ever appear on a customer's maintenance list.\n\n" +
+          "- `RECURRING` — servicing that repeats whether anything broke or not " +
+          "(AC servicing, deep cleaning). Only these produce a countdown.\n" +
+          "- `OCCASIONAL` — a real interval, but measured in years (painting, tiling). " +
+          "Recorded, never nudged.\n" +
+          "- `NONE` — a breakdown repair. There is no cycle to remind anyone about.\n\n" +
+          "Defaults to `NONE` on purpose: a category added today must not start " +
+          "nudging customers until somebody deliberately says it should.",
+        example: "RECURRING",
+      },
+      maintenanceIntervalDays: {
+        type: "integer",
+        minimum: 1,
+        maximum: 3650,
+        description:
+          "How many days between visits. **Required when `maintenanceType` is " +
+          "`RECURRING`** — without it the category would silently drop out of every " +
+          "maintenance list. Ignored on the other two types, where it is left null.",
+        example: 180,
+      },
       isActive: { type: "boolean", default: true },
     },
   },
@@ -78,6 +104,16 @@ export const categorySchemas = {
       coverImage: { type: "string", format: "uri", maxLength: 2048, nullable: true },
       commonIssues: { type: "array", maxItems: 12, items: { type: "string", minLength: 3, maxLength: 160 } },
       isActive: { type: "boolean" },
+      maintenanceType: { type: "string", enum: ["RECURRING", "OCCASIONAL", "NONE"] },
+      maintenanceIntervalDays: {
+        type: "integer",
+        minimum: 1,
+        maximum: 3650,
+        nullable: true,
+        description:
+          "Send `null` to clear the cycle when moving a category off `RECURRING`. " +
+          "Sending `maintenanceType: RECURRING` without an interval is rejected.",
+      },
     },
   },
 
@@ -212,6 +248,19 @@ export const categorySchemas = {
             properties: { min: moneyString("600"), max: moneyString("1800") },
           },
           commonIssues: { type: "array", items: { type: "string" } },
+          maintenanceType: {
+            type: "string",
+            enum: ["RECURRING", "OCCASIONAL", "NONE"],
+            description: "Lets the page say 'recommended every 6 months' where it is true.",
+          },
+          maintenanceIntervalDays: {
+            type: "integer",
+            nullable: true,
+            description:
+              "Only non-null when `maintenanceType` is `RECURRING`. The mapper nulls it " +
+              "on the other types so the client does not have to check both fields.",
+            example: 180,
+          },
           topTechnicians: {
             type: "array",
             maxItems: 6,
@@ -252,6 +301,12 @@ export const categorySchemas = {
           tagline: { type: "string", nullable: true },
           coverImage: { type: "string", format: "uri", nullable: true },
           commonIssues: { type: "array", items: { type: "string" } },
+          maintenanceType: { type: "string", enum: ["RECURRING", "OCCASIONAL", "NONE"] },
+          maintenanceIntervalDays: {
+            type: "integer",
+            nullable: true,
+            description: "Returned raw here — unlike the public details shape, admin sees the stored value on every type.",
+          },
           isActive: { type: "boolean" },
           isDeleted: { type: "boolean" },
           deletedAt: { type: "string", format: "date-time", nullable: true },

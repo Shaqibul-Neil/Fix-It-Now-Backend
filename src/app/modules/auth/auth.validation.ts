@@ -30,7 +30,7 @@ export const registerValidationSchema = z.object({
 
 export const loginValidationSchema = z.object({
   body: z.object({
-    email: z.email("Email is required"),
+    email: z.email("Email is required").toLowerCase(),
     password: z.string().min(1, "Password is required"),
   }),
 });
