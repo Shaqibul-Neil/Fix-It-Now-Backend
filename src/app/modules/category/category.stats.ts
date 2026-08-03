@@ -1,7 +1,3 @@
-import type { Prisma } from "../../../../generated/prisma/client";
-import { TBookingStatus } from "../../../../generated/prisma/enums";
-import { prisma } from "../../../lib/prisma";
-import { PUBLIC_CATEGORY_SERVICE_WHERE } from "./category.include";
 import type {
   IPublicCategoryStats,
   IRankedService,
@@ -59,7 +55,7 @@ export const buildCategoryStats = async (
     getCompletedBookingAggregates(categoryIds),
     getBookingAggregates(categoryIds),
     getResponseAggregates(categoryIds),
-    getTrendingAggregates(categoryIds),
+    getTrendingAggregates(),
     getPopularServiceAggregates(categoryIds),
   ]);
 
@@ -138,7 +134,7 @@ export const buildCategoryStats = async (
         minPrice === null || maxPrice === null
           ? null
           : { min: String(minPrice), max: String(maxPrice) },
-      averageRating: String((reviews?._avg.rating ?? 0).toFixed(2)),
+      averageRating: (reviews?._avg.rating ?? 0).toFixed(2),
       totalReviews: reviews?._count._all ?? 0,
       technicianCount: technicianMap.get(categoryId) ?? 0,
       completedJobs: completedBookingMap.get(categoryId) ?? 0,

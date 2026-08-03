@@ -139,13 +139,11 @@ export const getResponseAggregates = (categoryIds: string[]) => {
 };
 
 // isTrending
-export const getTrendingAggregates = (categoryIds: string[]) => {
+export const getTrendingAggregates = () => {
   return prisma.booking.groupBy({
     by: ["categoryId"],
     where: {
-      categoryId: {
-        in: categoryIds,
-      },
+      category: LIVE_ONLY,
       createdAt: { gte: getDateFromPeriod(TRENDING_WINDOW_DAYS) },
       status: {
         notIn: EXCLUDED_BOOKING_STATUSES,
@@ -176,7 +174,7 @@ export const getPopularServiceAggregates = (categoryIds: string[]) => {
 // Titles for the ids the ranking picked out. One lookup for the whole batch.
 export const getServiceTitles = (serviceIds: string[]) => {
   return prisma.service.findMany({
-    where: { id: { in: serviceIds } },
+    where: { id: { in: serviceIds }, ...PUBLIC_CATEGORY_SERVICE_WHERE },
     select: { id: true, title: true },
   });
 };
