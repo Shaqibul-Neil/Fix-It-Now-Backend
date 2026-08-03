@@ -138,7 +138,7 @@ export const buildCategoryStats = async (
         minPrice === null || maxPrice === null
           ? null
           : { min: String(minPrice), max: String(maxPrice) },
-      averageRating: (reviews?._avg.rating ?? 0).toFixed(2),
+      averageRating: String((reviews?._avg.rating ?? 0).toFixed(2)),
       totalReviews: reviews?._count._all ?? 0,
       technicianCount: technicianMap.get(categoryId) ?? 0,
       completedJobs: completedBookingMap.get(categoryId) ?? 0,
